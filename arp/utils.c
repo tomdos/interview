@@ -18,7 +18,7 @@
  */
 #ifdef _WIN32
 #include <conio.h>
-#elif __linux
+#elif __linux || __APPLE__
 #define   _kbhit()  1
 #define   _getch()  getchar()
 //FIXME variable parameters

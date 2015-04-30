@@ -15,6 +15,9 @@ void Iface_Send(PVOID pData, DWORD dwLen);
 WORD __ntohs(WORD w);
 DWORD __ntohl(DWORD dw);
 
+//FIXME
+#ifndef __APPLE__
+
 #if 1
   /* Use 1 if host byte ordering is different from network byte ordering
    * Otherwise use 0
@@ -31,10 +34,11 @@ DWORD __ntohl(DWORD dw);
   #define ntohl(x) (x)
 #endif
 
+#endif
 
-BOOL KBHit(void); 
+
+BOOL KBHit(void);
 int Getch(void);
 
 
 #endif /* __UTILS_H__ */
-
