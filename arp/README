@@ -2,3 +2,6 @@
   - use LL or array or array of pointers.. -> malloc shall not be used outside of init function
 
 - Win x Linux compilation, case sensitive ...
+
+
+-> End of line (DOS)!!
