@@ -15,7 +15,16 @@
 #define ARP_TABLERECORD_INACTIVE  0x02
 
 #define ARP_PACKET_SIZE           (sizeof(ENETHDR) + sizeof(ARPHDR))
-#define ARP_PROTOCOL_ARP          0x0806
+
+/* Pre-defined values for ARP packet of IP4 on Ethenrnet */
+#define ETHHDR_TYPE               0x0806
+#define ARPHDR_HTYPE              0x01
+#define ARPHDR_PTYPE              0x0800
+#define ARPHDR_HLEN               0x06
+#define ARPHDR_PLEN               0x04
+#define ARPHDR_OPER_REQUEST       0x01
+#define ARPHDR_OPER_REPLY         0x02
+
 /*
  * Representation of ARP packet.
  */
@@ -45,6 +54,9 @@ typedef struct tagARPRECORD
   BYTE status;
 } ARPRECORD, *PARPRECORD;
 
+/*
+ * Arp table - array is used as a ring buffer.
+ */
 typedef struct tagARPTABLE
 {
   ARPRECORD table[ARP_TABLE_SIZE];

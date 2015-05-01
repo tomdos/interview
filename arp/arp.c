@@ -48,8 +48,34 @@ void ARP_TableRecordAdd(PIPADDR pIPAddr, PENETADDR pHw)
   arpTable.table_idx = (arpTable.table_idx + 1) % ARP_TABLE_SIZE;
 }
 
+void ARP_DBGPacketPrint(PVOID pData, DWORD dwLen)
+{
+  PENETHDR pEth;
+  PARPHDR pArp;
 
-void ARP_PrintWhoIam(void)
+  pEth = pData;
+  pArp = pData + sizeof(ENETHDR);
+
+  if (dwLen < sizeof(ENETHDR) + sizeof(ARPHDR)) {
+    printf("Pkt is malformed.\r\n");
+    return;
+  }
+  printf("=ETHERNET=\r\n");
+  printf("dst: %s\r\n", ENetAddrToA(&pEth->HwDest));
+  printf("src: %s\r\n", ENetAddrToA(&pEth->HwSender));
+  printf("pro: %04X\r\n", ntohs(pEth->wProto));
+  printf("=ARP=\r\n");
+  printf("hrd: %d\r\n", ntohs(pArp->hrd));
+  printf("pro: %04X\r\n", ntohs(pArp->pro));
+  printf("hln: %d\r\n", pArp->hln);
+  printf("pln: %d\r\n", pArp->pln);
+  printf("op:  %d\r\n", ntohs(pArp->op));
+  printf("spa: %s sha: %s\r\n", IPAddrToA(&pArp->spa), ENetAddrToA(&pArp->sha));
+  printf("tpa: %s sha: %s\r\n", IPAddrToA(&pArp->tpa), ENetAddrToA(&pArp->tha));
+}
+
+
+void ARP_DBGPrintWhoAmI(void)
 {
   printf("Me %s = %s\r\n", IPAddrToA(Iface_GetIPAddress()),
     ENetAddrToA(Iface_GetENetAddress()));
@@ -58,30 +84,48 @@ void ARP_PrintWhoIam(void)
 
 void ARP_ProcessIncoming(PVOID pData, DWORD dwLen)
 {
-  printf("ARP_ProcessIncoming not done.\r\n");
-  ARP_PrintWhoIam();
-
   PENETHDR pEth;
-  pEth = pData;
-  printf("D: %s\r\n", ENetAddrToA(&pEth->HwDest));
-  printf("S: %s\r\n", ENetAddrToA(&pEth->HwSender));
-  printf("%04X\r\n", ntohs(pEth->wProto));
+  PARPHDR pArp;
 
-  printf("\r\n");
+  pEth = pData;
+  pArp = pData + sizeof(ENETHDR);
+
+  printf("ARP_ProcessIncoming.\r\n");
+  ARP_DBGPrintWhoAmI();
+  ARP_DBGPacketPrint(pData, dwLen);
+
+  if (dwLen >= ARP_PACKET_SIZE &&
+      ntohs(pEth->wProto) == ETHHDR_TYPE &&
+      ntohs(pArp->hrd) == ARPHDR_HTYPE &&
+      ntohs(pArp->pro) == ARPHDR_PTYPE &&
+      pArp->hln == ARPHDR_HLEN &&
+      pArp->pln == ARPHDR_PLEN)
+  {
+    /* ARP request */
+    if (ntohs(pArp->op) == ARPHDR_OPER_REQUEST)
+    {
+      ARP_TableRecordAdd(&pArp->spa, &pArp->sha);
+    }
+    /* ARP reply */
+    else if (ntohs(pArp->op) == ARPHDR_OPER_REPLY)
+    {
+      ARP_TableRecordAdd(&pArp->spa, &pArp->sha);
+    }
+    /* Unsupported */
+    else
+    {
+      printf("Unsupported arp operation.\r\n");
+    }
+  }
+  else
+  {
+    printf("Unsupported packet format.\r\n");
+  }
+
 
   //FIXME test - protocol and hardware size
   //FIXME test - opcode (request)
   //FIXME send response to a request??
-
-  PARPHDR pArp;
-  pArp = pData + sizeof(ENETHDR);
-  printf("%d\r\n", ntohs(pArp->hrd));
-  printf("%04X\r\n", ntohs(pArp->pro));
-  printf("%d\r\n", pArp->hln);
-  printf("%d\r\n", pArp->pln);
-  printf("%d\r\n", ntohs(pArp->op));
-  printf("S: %s = %s\r\n", IPAddrToA(&pArp->spa), ENetAddrToA(&pArp->sha));
-  printf("T: %s = %s\r\n", IPAddrToA(&pArp->tpa), ENetAddrToA(&pArp->tha));
 }
 
 
@@ -144,7 +188,7 @@ PENETADDR ARP_Query(PIPADDR pIPAddr)
   pHostHw = Iface_GetENetAddress();
   memcpy(&pEth->HwSender, pHostHw, sizeof(ENETADDR));
   memset(&pEth->HwDest, 0xFFFFFFFF, sizeof(ENETADDR)); // Broadcast
-  pEth->wProto = htons(ARP_PROTOCOL_ARP);
+  pEth->wProto = htons(ETHHDR_TYPE);
 
   /* Fill proto layer */
   pArp = arpPacket + sizeof(ENETHDR);
@@ -160,7 +204,6 @@ PENETADDR ARP_Query(PIPADDR pIPAddr)
 
   //printf("========================DBG\r\n");
   //ARP_ProcessIncoming(arpPacket, ARP_PACKET_SIZE);
-
   Iface_Send(arpPacket, ARP_PACKET_SIZE);
 
   printf("ARP_Query not done.\r\n");
