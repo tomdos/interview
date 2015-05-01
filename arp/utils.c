@@ -1,6 +1,3 @@
-
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <memory.h>
@@ -23,7 +20,7 @@
 #define   _getch()  getchar()
 //FIXME variable parameters
 #define sprintf_s(str, size, format, ...)  snprintf(str, size, format, __VA_ARGS__)
-#endif                 
+#endif
 
 BOOL KBHit(void)
 {
@@ -90,7 +87,7 @@ DWORD __ntohl(DWORD dw)
 char* ENetAddrToA(PENETADDR p)
 {
   static char szBuf[20];
-  sprintf_s(szBuf, sizeof(szBuf), "%02x%02x:%02x%02x:%02x%02x", 
+  sprintf_s(szBuf, sizeof(szBuf), "%02x%02x:%02x%02x:%02x%02x",
     ((BYTE*)p)[0],
     ((BYTE*)p)[1],
     ((BYTE*)p)[2],
@@ -119,7 +116,7 @@ char* ENetAddrToA(PENETADDR p)
 char* IPAddrToA(PIPADDR p)
 {
   static char szBuf[20];
-  sprintf_s(szBuf, sizeof(szBuf), "%i.%i.%i.%i", 
+  sprintf_s(szBuf, sizeof(szBuf), "%i.%i.%i.%i",
     ((BYTE*)p)[0],
     ((BYTE*)p)[1],
     ((BYTE*)p)[2],

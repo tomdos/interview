@@ -8,9 +8,17 @@
  *
  ************************************************************************/
 
-#define ARP_CACHE_SIZE    8   /* By definition in 3.1 */
-#define ARP_LIFE_TIME     30  /* By definition in 3.1 */
+#define ARP_TABLE_SIZE            8   /* By definition in 3.1 */
+#define ARP_LIFE_TIME             30  /* By definition in 3.1 */
 
+#define ARP_TABLERECORD_ACTIVE    0x01
+#define ARP_TABLERECORD_INACTIVE  0x02
+
+#define ARP_PACKET_SIZE           (sizeof(ENETHDR) + sizeof(ARPHDR))
+#define ARP_PROTOCOL_ARP          0x0806
+/*
+ * Representation of ARP packet.
+ */
 typedef struct tagARPHDR
 {
   WORD hrd;
@@ -18,7 +26,7 @@ typedef struct tagARPHDR
   BYTE hln;
   BYTE pln;
   WORD op;
-  
+
   ENETADDR sha;
   IPADDR spa;
   ENETADDR tha;
@@ -27,20 +35,21 @@ typedef struct tagARPHDR
 
 
 /*
- * Line content of arp cache.
+ * Line content of arp table.
  */
 typedef struct tagARPRECORD
 {
   IPADDR ip;
   DWORD timestamp;
-  ENETADDR mac;
+  ENETADDR hw;
   BYTE status;
-} ARPRECORD;
+} ARPRECORD, *PARPRECORD;
 
 typedef struct tagARPTABLE
 {
-  ARPRECORD table[ARP_CACHE_SIZE];
-} ARPTABLE;
+  ARPRECORD table[ARP_TABLE_SIZE];
+  WORD table_idx;
+} ARPTABLE, *PARPTABLE;
 
 void ARP_Init(void);
 void ARP_Cleanup(void);

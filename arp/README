@@ -3,5 +3,6 @@
 
 - Win x Linux compilation, case sensitive ...
 
+-ARPHDR - assuming that sha/tha is hw mac (6B) and spa/tpa is IP (4B)
 
 -> End of line (DOS)!!
