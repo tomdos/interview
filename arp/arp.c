@@ -392,7 +392,7 @@ void ARP_PacketFillValues(PENETADDR pEthLayerDest,
    memcpy(&pArp->sha, pHwSrc, sizeof(ENETADDR));
    memcpy(&pArp->tpa, pIPDest, sizeof(IPADDR));
    memcpy(&pArp->tha, pHwDest, sizeof(ENETADDR));
- }
+}
 
 void ARP_PacketReply(PENETADDR pEthLayerDest, PIPADDR pIPDest, PENETADDR pHwDest)
 {
