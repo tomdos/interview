@@ -7,7 +7,7 @@
 
 -SecondProcessing - not called every second!
 
--Single arp packet.
+-Single arp packet - global variable.
 
 -Request(Reply packet) - in request packet the src mac and arp sha are different
 

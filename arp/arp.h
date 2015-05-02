@@ -11,10 +11,12 @@
 #define ARP_TABLE_SIZE            8   /* By definition in 3.1 */
 #define ARP_LIFE_TIME             30  /* By definition in 3.1 */
 
+/* Status of record in the table (ARP cache table). */
 #define ARP_TABLERECORD_FREE      0x00
 #define ARP_TABLERECORD_ACTIVE    0x01
 #define ARP_TABLERECORD_FAIL      0x02
 
+/* Size of ARP packet */
 #define ARP_PACKET_SIZE           (sizeof(ENETHDR) + sizeof(ARPHDR))
 
 /* Pre-defined values for ARP packet of IP4 on Ethenrnet */
@@ -26,8 +28,9 @@
 #define ARPHDR_OPER_REQUEST       0x01
 #define ARPHDR_OPER_REPLY         0x02
 
+
 /*
- * Representation of ARP packet.
+ * Representation of ARP header - assuming ARP over eth and ip.
  */
 typedef struct tagARPHDR
 {
@@ -55,13 +58,15 @@ typedef struct tagARPRECORD
   BYTE status;
 } ARPRECORD, *PARPRECORD;
 
+
 /*
- * Arp table - array is used as a ring buffer.
+ * Arp table - Table/Cache which is used to store arp records containing.
  */
 typedef struct tagARPTABLE
 {
   ARPRECORD table[ARP_TABLE_SIZE];
 } ARPTABLE, *PARPTABLE;
+
 
 void ARP_Init(void);
 void ARP_Cleanup(void);

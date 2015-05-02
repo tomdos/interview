@@ -16,14 +16,20 @@
 void ARP_PacketReply(PENETADDR, PIPADDR, PENETADDR);
 void ARP_PacketRequest(PIPADDR);
 
-
 ARPTABLE arpTable;
 PVOID pArpPacket;
 
-/*
- * Return table record for IP or NULL.
- */
-PARPRECORD ARP_TableRecordGet(PIPADDR pIPAddr)
+
+/****************************************************************************
+ *
+ * Function : ARP_TableRecordFind
+ *
+ * Purpose  : Find a record which contains IP and HW addr.
+ *
+ * Returns  : Table record for requested IP or NULL
+ *
+ ***************************************************************************/
+PARPRECORD ARP_TableRecordFind(PIPADDR pIPAddr)
 {
   WORD i;
 
@@ -39,7 +45,18 @@ PARPRECORD ARP_TableRecordGet(PIPADDR pIPAddr)
   return NULL;
 }
 
-void ARP_TableRecordAdd(PIPADDR pIPAddr, PENETADDR pHw)
+
+/****************************************************************************
+ *
+ * Function : ARP_TableRecordGet
+ *
+ * Purpose  : Get a suitable record from the table which will be
+ *            replaced/updated.
+ *
+ * Returns  : Record (PARPRECORD) from the table.
+ *
+ ***************************************************************************/
+PARPRECORD ARP_TableRecordGet(PIPADDR pIPAddr)
 {
   PARPRECORD pTable;
   WORD idx;
@@ -86,15 +103,51 @@ void ARP_TableRecordAdd(PIPADDR pIPAddr, PENETADDR pHw)
       idx = oldestSlot;
   }
 
-  /* Set new record (or change older one) */
-  pTable = &arpTable.table[idx];
+  return &arpTable.table[idx];
+}
+
+
+/****************************************************************************
+ *
+ * Function : ARP_TableRecordAdd, ARP_TableRecordAddNotAck
+ *
+ * Purpose  : Add new (or update older) pair of IP and HW addr to the table.
+ *            Add or update record but set status to FAIL.
+ *
+ * Returns  : -
+ *
+ ***************************************************************************/
+void ARP_TableRecordAdd(PIPADDR pIPAddr, PENETADDR pHw)
+{
+  PARPRECORD pTable;
+
+  pTable = ARP_TableRecordGet(pIPAddr);
   memcpy(&pTable->ip, pIPAddr, sizeof(IPADDR));
   memcpy(&pTable->hw, pHw, sizeof(ENETADDR));
   pTable->timestamp = Time();
-  pTable->status = 1;
+  pTable->status = ARP_TABLERECORD_ACTIVE;
 }
 
-/* Remove everything older that 30s */
+void ARP_TableRecordAddNotAck(PIPADDR pIPAddr)
+{
+  PARPRECORD pTable;
+
+  pTable = ARP_TableRecordGet(pIPAddr);
+  memcpy(&pTable->ip, pIPAddr, sizeof(IPADDR));
+  memset(&pTable->hw, 0xFFFFFFFF, sizeof(ENETADDR));
+  pTable->timestamp = Time();
+  pTable->status = ARP_TABLERECORD_FAIL;
+}
+
+/****************************************************************************
+ *
+ * Function : ARP_TableAgeing
+ *
+ * Purpose  : Remove every records older then ARP_TABLERECORD_FREE.
+ *
+ * Returns  : -
+ *
+ ***************************************************************************/
 void ARP_TableAgeing()
 {
   PARPRECORD pTable;
@@ -115,6 +168,16 @@ void ARP_TableAgeing()
 
 }
 
+
+/****************************************************************************
+ *
+ * Function : ARP_DBGPacketPrint, ARP_DBGPrintWhoAmI
+ *
+ * Purpose  : DEBUG - Print packet info. Print host IP and HW addr.
+ *
+ * Returns  : -
+ *
+ ***************************************************************************/
 void ARP_DBGPacketPrint(PVOID pData, DWORD dwLen)
 {
   PENETHDR pEth;
@@ -150,6 +213,17 @@ void ARP_DBGPrintWhoAmI(void)
 }
 
 
+/****************************************************************************
+ *
+ * Function : ARP_ProcessIncoming
+ *
+ * Purpose  : Process incoming packets of ARP proto. Validate packet format,
+ *            and add values from packet into the table. In case of request
+ *            packet send reply.
+ *
+ * Returns  : -
+ *
+ ***************************************************************************/
 void ARP_ProcessIncoming(PVOID pData, DWORD dwLen)
 {
   PENETHDR pEth;
@@ -197,6 +271,15 @@ void ARP_ProcessIncoming(PVOID pData, DWORD dwLen)
 }
 
 
+/****************************************************************************
+ *
+ * Function : ARP_Init, ARP_Cleanup
+ *
+ * Purpose  : Initialize and clean up memory.
+ *
+ * Returns  : -
+ *
+ ***************************************************************************/
 void ARP_Init(void)
 {
   memset(&arpTable, 0, sizeof(ARPTABLE));
@@ -218,12 +301,30 @@ void ARP_Cleanup(void)
 }
 
 
+/****************************************************************************
+ *
+ * Function : ARP_SecondProcessing
+ *
+ * Purpose  : Shall be called every second and process table ageing.
+ *
+ * Returns  : -
+ *
+ ***************************************************************************/
 void ARP_SecondProcessing(void)
 {
   ARP_TableAgeing();
 }
 
 
+/****************************************************************************
+ *
+ * Function : ARP_PrintAll
+ *
+ * Purpose  : Print content of the table.
+ *
+ * Returns  : -
+ *
+ ***************************************************************************/
 void ARP_PrintAll(void)
 {
   PARPRECORD pRecord;
@@ -248,71 +349,90 @@ void ARP_PrintAll(void)
   }
 }
 
+
+/****************************************************************************
+ *
+ * Function : ARP_PacketFillValues, ARP_PacketReply, ARP_PacketRequest
+ *
+ * Purpose  : Fill request/reply packet with all data. Functions don't return
+              any value and the result is stored in global variable
+              pArpPacket.
+ *
+ * Returns  : -
+ *
+ ***************************************************************************/
+void ARP_PacketFillValues(PENETADDR pEthLayerDest,
+                          PIPADDR pIPDest,
+                          PENETADDR pHwDest,
+                          WORD op)
+{
+   PENETHDR pEth;
+   PARPHDR pArp;
+   PIPADDR pIPSrc;
+   PENETADDR pHwSrc;
+
+   memset(pArpPacket, 0, ARP_PACKET_SIZE);
+
+   /* Fill Ethernet  */
+   pEth = (PENETHDR) pArpPacket;
+   pIPSrc = Iface_GetIPAddress();
+   pHwSrc = Iface_GetENetAddress();
+   memcpy(&pEth->HwSender, pHwSrc, sizeof(ENETADDR));
+   memcpy(&pEth->HwDest, pEthLayerDest, sizeof(ENETADDR));
+   pEth->wProto = htons(ETHHDR_TYPE);
+
+   /* Fill ARP */
+   pArp = pArpPacket + sizeof(ENETHDR);
+   pArp->hrd = htons(ARPHDR_HTYPE);
+   pArp->pro = htons(ARPHDR_PTYPE);
+   pArp->hln = ARPHDR_HLEN;
+   pArp->pln = ARPHDR_PLEN;
+   pArp->op = htons(op);
+   memcpy(&pArp->spa, pIPSrc, sizeof(IPADDR));
+   memcpy(&pArp->sha, pHwSrc, sizeof(ENETADDR));
+   memcpy(&pArp->tpa, pIPDest, sizeof(IPADDR));
+   memcpy(&pArp->tha, pHwDest, sizeof(ENETADDR));
+ }
+
 void ARP_PacketReply(PENETADDR pEthLayerDest, PIPADDR pIPDest, PENETADDR pHwDest)
 {
-  PENETHDR pEth;
-  PARPHDR pArp;
-  PIPADDR pIPSrc;
-  PENETADDR pHwSrc;
-
-  memset(pArpPacket, 0, ARP_PACKET_SIZE);
-
-  /* Fill Ethernet  */
-  pEth = (PENETHDR) pArpPacket;
-  pIPSrc = Iface_GetIPAddress();
-  pHwSrc = Iface_GetENetAddress();
-  memcpy(&pEth->HwSender, pHwSrc, sizeof(ENETADDR));
-  memcpy(&pEth->HwDest, pEthLayerDest, sizeof(ENETADDR));
-  pEth->wProto = htons(ETHHDR_TYPE);
-
-  /* Fill ARP */
-  pArp = pArpPacket + sizeof(ENETHDR);
-  pArp->hrd = htons(ARPHDR_HTYPE);
-  pArp->pro = htons(ARPHDR_PTYPE);
-  pArp->hln = ARPHDR_HLEN;
-  pArp->pln = ARPHDR_PLEN;
-  pArp->op = htons(ARPHDR_OPER_REPLY);
-  memcpy(&pArp->spa, pIPSrc, sizeof(IPADDR));
-  memcpy(&pArp->sha, pHwSrc, sizeof(ENETADDR));
-  memcpy(&pArp->tpa, pIPDest, sizeof(IPADDR));
-  memcpy(&pArp->tha, pHwDest, sizeof(ENETADDR));
+  ARP_PacketFillValues(pEthLayerDest, pIPDest, pHwDest, ARPHDR_OPER_REQUEST);
+  //ARP_DBGPacketPrint(pArpPacket, ARP_PACKET_SIZE);
 }
 
 void ARP_PacketRequest(PIPADDR pIPDest)
 {
-  PENETHDR pEth;
-  PARPHDR pArp;
-  PIPADDR pIPSrc;
-  PENETADDR pHwSrc;
+  ENETADDR ethLayerDest;
+  ENETADDR hwDest;
 
-  memset(pArpPacket, 0, ARP_PACKET_SIZE);
+  /* Any value in tha */
+  memset(&hwDest, 0, sizeof(ENETADDR));
+  /* Eth broadcast */
+  memset(&ethLayerDest, 0xFFFFFFFF, sizeof(ENETADDR));
+  ARP_PacketFillValues(&ethLayerDest, pIPDest, &hwDest, ARPHDR_OPER_REQUEST);
 
-  /* Fill Ethernet  */
-  pEth = (PENETHDR) pArpPacket;
-  pIPSrc = Iface_GetIPAddress();
-  pHwSrc = Iface_GetENetAddress();
-  memcpy(&pEth->HwSender, pHwSrc, sizeof(ENETADDR));
-  memset(&pEth->HwDest, 0xFFFFFFFF, sizeof(ENETADDR)); // Broadcast
-  pEth->wProto = htons(ETHHDR_TYPE);
-
-  /* Fill ARP */
-  pArp = pArpPacket + sizeof(ENETHDR);
-  pArp->hrd = htons(ARPHDR_HTYPE);
-  pArp->pro = htons(ARPHDR_PTYPE);
-  pArp->hln = ARPHDR_HLEN;
-  pArp->pln = ARPHDR_PLEN;
-  pArp->op = htons(ARPHDR_OPER_REQUEST);
-  memcpy(&pArp->spa, pIPSrc, sizeof(IPADDR));
-  memcpy(&pArp->sha, pHwSrc, sizeof(ENETADDR));
-  memcpy(&pArp->tpa, pIPDest, sizeof(IPADDR));
+  //ARP_DBGPacketPrint(pArpPacket, ARP_PACKET_SIZE);
 }
 
 
+/****************************************************************************
+ *
+ * Function : ARP_Query
+ *
+ * Purpose  : Process query for input IP. Try to search the table at first.
+ *            If the table doens't contain requested IP than send ARP
+ *            request.
+ *
+ * Returns  : Return HW addr for requested IP, 0 if the table doesn't
+ *            contain IP, -1 in case of error.
+ *
+ ***************************************************************************/
 PENETADDR ARP_Query(PIPADDR pIPAddr)
 {
   PARPRECORD pTable;
 
-  pTable = ARP_TableRecordGet(pIPAddr);
+
+  pTable = ARP_TableRecordFind(pIPAddr);
   if (pTable)
   {
     if (pTable->status == ARP_TABLERECORD_FAIL)
