@@ -61,7 +61,6 @@ typedef struct tagARPRECORD
 typedef struct tagARPTABLE
 {
   ARPRECORD table[ARP_TABLE_SIZE];
-  WORD table_idx;
 } ARPTABLE, *PARPTABLE;
 
 void ARP_Init(void);

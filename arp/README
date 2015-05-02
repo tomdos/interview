@@ -5,4 +5,10 @@
 
 -ARPHDR - assuming that sha/tha is hw mac (6B) and spa/tpa is IP (4B)
 
+-SecondProcessing - not called every second!
+
+-Single arp packet.
+
+-Request(Reply packet) - in request packet the src mac and arp sha are different
+
 -> End of line (DOS)!!
