@@ -15,14 +15,19 @@ void Iface_Send(PVOID pData, DWORD dwLen);
 WORD __ntohs(WORD w);
 DWORD __ntohl(DWORD dw);
 
-//FIXME
-#ifndef __APPLE__
 
 #if 1
   /* Use 1 if host byte ordering is different from network byte ordering
    * Otherwise use 0
    * "1" is necessary for Intel CPU's, for instance.
    */
+
+  /* I had to alter this file because hto* already exists on some platforms. */
+  #undef htons
+  #undef ntohs
+  #undef htonl
+  #undef ntohl
+
 	#define htons(x) __ntohs(x)
   #define ntohs(x) __ntohs(x)
 	#define htonl(x) __ntohl(x)
@@ -32,8 +37,6 @@ DWORD __ntohl(DWORD dw);
   #define ntohs(x) (x)
 	#define htonl(x) (x)
   #define ntohl(x) (x)
-#endif
-
 #endif
 
 

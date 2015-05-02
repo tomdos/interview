@@ -9,17 +9,12 @@
 
 /*************** BELOW MAY NEED TO BE CHANGED FOR YOUR PLATFORM!!!! */
 
-
-/*
- * FIXME conio
- */
 #ifdef _WIN32
-#include <conio.h>
+# include <conio.h>
 #elif __linux || __APPLE__
-#define   _kbhit()  1
-#define   _getch()  getchar()
-//FIXME variable parameters
-#define sprintf_s(str, size, format, ...)  snprintf(str, size, format, __VA_ARGS__)
+# define   _kbhit()  1
+# define   _getch()  getchar()
+# define sprintf_s(str, size, format, ...)  snprintf(str, size, format, __VA_ARGS__)
 #endif
 
 BOOL KBHit(void)
