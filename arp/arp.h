@@ -11,8 +11,9 @@
 #define ARP_TABLE_SIZE            8   /* By definition in 3.1 */
 #define ARP_LIFE_TIME             30  /* By definition in 3.1 */
 
+#define ARP_TABLERECORD_FREE      0x00
 #define ARP_TABLERECORD_ACTIVE    0x01
-#define ARP_TABLERECORD_INACTIVE  0x02
+#define ARP_TABLERECORD_FAIL      0x02
 
 #define ARP_PACKET_SIZE           (sizeof(ENETHDR) + sizeof(ARPHDR))
 
@@ -30,16 +31,16 @@
  */
 typedef struct tagARPHDR
 {
-  WORD hrd;
-  WORD pro;
-  BYTE hln;
-  BYTE pln;
-  WORD op;
+  WORD hrd;     /* HW address space */
+  WORD pro;     /* Protocol address space */
+  BYTE hln;     /* Hw addr len */
+  BYTE pln;     /* Proto addr len */
+  WORD op;      /* Opcode */
 
-  ENETADDR sha;
-  IPADDR spa;
-  ENETADDR tha;
-  IPADDR tpa;
+  ENETADDR sha; /* Sender hw addr */
+  IPADDR spa;   /* Sender proto addr */
+  ENETADDR tha; /* Target hw addr */
+  IPADDR tpa;   /* Target proto addr */
 } ARPHDR, *PARPHDR;
 
 

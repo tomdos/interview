@@ -14,7 +14,7 @@
 #include <string.h>
 
 ARPTABLE arpTable;
-PVOID arpPacket;
+PVOID pArpPacket;
 
 /*
  * Return table record for IP or NULL.
@@ -25,10 +25,10 @@ PARPRECORD ARP_TableRecordGet(PIPADDR pIPAddr)
 
   for (i = 0; i < ARP_TABLE_SIZE; i++)
   {
-    if (arpTable.table[i].status != ARP_TABLERECORD_ACTIVE)
+    if (arpTable.table[i].status == ARP_TABLERECORD_FREE)
       continue;
 
-    if (((DWORD *) pIPAddr) == ((DWORD *) &arpTable.table[i].ip))
+    if ( *((DWORD *) pIPAddr) == *((DWORD *) &arpTable.table[i].ip))
       return &arpTable.table[i];
   }
 
@@ -38,14 +38,55 @@ PARPRECORD ARP_TableRecordGet(PIPADDR pIPAddr)
 void ARP_TableRecordAdd(PIPADDR pIPAddr, PENETADDR pHw)
 {
   PARPRECORD pTable;
+  WORD idx;
+  DWORD oldest;
+  DWORD oldestSlot;
+  DWORD freeSlot;
 
-  pTable = &arpTable.table[arpTable.table_idx];
+  /*
+   * Find suitable slot in the arp table. Suitable means:
+   * - search for the IP
+   * - if IP record doesn't exist search for empty slot
+   * - if still nothing use the oldest record
+   */
+  oldest = 0;
+  oldestSlot = ARP_TABLE_SIZE;
+  freeSlot = ARP_TABLE_SIZE;
+
+  for (idx = 0; idx < ARP_TABLE_SIZE; idx++) {
+    pTable = &arpTable.table[idx];
+
+    /* IP */
+    if (*((DWORD *) pIPAddr) == *((DWORD *) &pTable->ip))
+      break;
+
+    /* Free */
+    if (pTable->status == ARP_TABLERECORD_FREE)
+      freeSlot = idx;
+
+    /* Oldest */
+    if (oldest == 0 || oldest > pTable->timestamp) {
+      oldest = pTable->timestamp;
+      oldestSlot = idx;
+    }
+  }
+
+  /* Table doens't contain IP - use freeSlot or oldest. */
+  if (idx >= ARP_TABLE_SIZE) {
+    if (freeSlot < ARP_TABLE_SIZE)
+      idx = freeSlot;
+    else
+      idx = oldestSlot;
+  }
+
+  /* Set new record (or change older one) */
+  pTable = &arpTable.table[idx];
   memcpy(&pTable->ip, pIPAddr, sizeof(IPADDR));
   memcpy(&pTable->hw, pHw, sizeof(ENETADDR));
   pTable->timestamp = Time();
   pTable->status = 1;
 
-  arpTable.table_idx = (arpTable.table_idx + 1) % ARP_TABLE_SIZE;
+  //arpTable.table_idx = (arpTable.table_idx + 1) % ARP_TABLE_SIZE;
 }
 
 void ARP_DBGPacketPrint(PVOID pData, DWORD dwLen)
@@ -105,6 +146,8 @@ void ARP_ProcessIncoming(PVOID pData, DWORD dwLen)
     if (ntohs(pArp->op) == ARPHDR_OPER_REQUEST)
     {
       ARP_TableRecordAdd(&pArp->spa, &pArp->sha);
+
+      /* Shall I send reply?? */
     }
     /* ARP reply */
     else if (ntohs(pArp->op) == ARPHDR_OPER_REPLY)
@@ -132,8 +175,8 @@ void ARP_ProcessIncoming(PVOID pData, DWORD dwLen)
 void ARP_Init(void)
 {
   memset(&arpTable, 0, sizeof(ARPTABLE));
-  arpPacket = (BYTE *) malloc(ARP_PACKET_SIZE);
-  if (arpPacket == NULL) {
+  pArpPacket = malloc(ARP_PACKET_SIZE);
+  if (pArpPacket == NULL) {
     ARP_Cleanup();
     exit(EXIT_FAILURE);
   }
@@ -144,7 +187,7 @@ void ARP_Init(void)
 
 void ARP_Cleanup(void)
 {
-  free(arpPacket);
+  free(pArpPacket);
   printf("ARP_Cleanup not done.\r\n");
 }
 
@@ -160,52 +203,76 @@ void ARP_PrintAll(void)
 {
   PARPRECORD pRecord;
   WORD i;
+  DWORD now;
 
-  printf("ARP Table\r\n");
+  now = Time();
+
   for (i = 0; i < ARP_TABLE_SIZE; i++) {
     pRecord = &arpTable.table[i];
-    printf("%d %s %s %lu\r\n",
+
+    if (pRecord->status == ARP_TABLERECORD_FREE)
+      ;//continue;
+
+    printf("%1d  %-15s %s  %2lu\r\n",
       pRecord->status,
       IPAddrToA(&pRecord->ip),
       ENetAddrToA(&pRecord->hw),
-      pRecord->timestamp);
+      (pRecord->status == ARP_TABLERECORD_ACTIVE)
+        ? now - pRecord->timestamp : 0);
   }
 }
 
-
-PENETADDR ARP_Query(PIPADDR pIPAddr)
+void ARP_PacketRequest(PIPADDR pIPAddr)
 {
   PENETHDR pEth;
   PARPHDR pArp;
   PIPADDR pHostIP;
   PENETADDR pHostHw;
 
-  memset(arpPacket, 0, sizeof(ARP_PACKET_SIZE));
+  memset(pArpPacket, 0, ARP_PACKET_SIZE);
 
-  /* Fill HW layer */
-  pEth = (PENETHDR) arpPacket;
+  /* Fill Ethernet  */
+  pEth = (PENETHDR) pArpPacket;
   pHostIP = Iface_GetIPAddress();
   pHostHw = Iface_GetENetAddress();
   memcpy(&pEth->HwSender, pHostHw, sizeof(ENETADDR));
   memset(&pEth->HwDest, 0xFFFFFFFF, sizeof(ENETADDR)); // Broadcast
   pEth->wProto = htons(ETHHDR_TYPE);
 
-  /* Fill proto layer */
-  pArp = arpPacket + sizeof(ENETHDR);
-  pArp->hrd = htons(1);
-  pArp->pro = htons(0x0800);
-  pArp->hln = 6;
-  pArp->pln = 4;
-  pArp->op = htons(1);
+  /* Fill ARP */
+  pArp = pArpPacket + sizeof(ENETHDR);
+  pArp->hrd = htons(ARPHDR_HTYPE);
+  pArp->pro = htons(ARPHDR_PTYPE);
+  pArp->hln = ARPHDR_HLEN;
+  pArp->pln = ARPHDR_PLEN;
+  pArp->op = htons(ARPHDR_OPER_REQUEST);
   memcpy(&pArp->spa, pHostIP, sizeof(IPADDR));
   memcpy(&pArp->sha, pHostHw, sizeof(ENETADDR));
   memcpy(&pArp->tpa, pIPAddr, sizeof(IPADDR));
-  memset(&pArp->tha, 0xFFFFFFFF, sizeof(ENETADDR));
+  //memset(&pArp->tha, 0xFFFFFFFF, sizeof(ENETADDR));
+}
 
-  //printf("========================DBG\r\n");
-  //ARP_ProcessIncoming(arpPacket, ARP_PACKET_SIZE);
-  Iface_Send(arpPacket, ARP_PACKET_SIZE);
 
-  printf("ARP_Query not done.\r\n");
-  return (PENETADDR)0;
+PENETADDR ARP_Query(PIPADDR pIPAddr)
+{
+  PARPRECORD pTable;
+
+  pTable = ARP_TableRecordGet(pIPAddr);
+  if (pTable)
+  {
+    if (pTable->status == ARP_TABLERECORD_FAIL)
+    {
+      return (PENETADDR) -1;
+    }
+    else
+    {
+      return (PENETADDR) &pTable->hw;
+    }
+  }
+
+  ARP_PacketRequest(pIPAddr);
+  Iface_Send(pArpPacket, ARP_PACKET_SIZE);
+
+  //printf("ARP_Query.\r\n");
+  return (PENETADDR) 0;
 }
