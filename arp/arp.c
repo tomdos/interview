@@ -13,16 +13,6 @@
  ************************************************************************/
 #include <string.h>
 
-#define DEBUG 1
-
-#if DEBUG
-# define DBGPacketPrint(d, l)  ARP_DBGPacketPrint((d), (l))
-# define DBGPrintWhoAmI()  ARP_DBGPrintWhoAmI()
-#else
-# define DBGPacketPrint(d, l)
-# define DBGPrintWhoAmI()
-#endif
-
 void ARP_PacketReply(PENETADDR, PIPADDR, PENETADDR);
 void ARP_PacketRequest(PIPADDR);
 
@@ -238,6 +228,7 @@ void ARP_ProcessIncoming(PVOID pData, DWORD dwLen)
 {
   PENETHDR pEth;
   PARPHDR pArp;
+  PIPADDR pLocalIP;
 
   pEth = pData;
   pArp = pData + sizeof(ENETHDR);
@@ -246,6 +237,7 @@ void ARP_ProcessIncoming(PVOID pData, DWORD dwLen)
   DBGPrintWhoAmI();
   DBGPacketPrint(pData, dwLen);
 
+  /* Check basic structure of incommint pkt */
   if (dwLen >= ARP_PACKET_SIZE &&
       ntohs(pEth->wProto) == ETHHDR_TYPE &&
       ntohs(pArp->hrd) == ARPHDR_HTYPE &&
@@ -253,6 +245,16 @@ void ARP_ProcessIncoming(PVOID pData, DWORD dwLen)
       pArp->hln == ARPHDR_HLEN &&
       pArp->pln == ARPHDR_PLEN)
   {
+    /* Arp target must be my ip. */
+    pLocalIP = Iface_GetIPAddress();
+    if (!ComparePIP(pLocalIP, &pArp->tpa))
+    {
+#if DEBUG
+      printf("Incomming packet is not for me.\r\n");
+#endif
+      return;
+    }
+
     /* ARP request */
     if (ntohs(pArp->op) == ARPHDR_OPER_REQUEST)
     {

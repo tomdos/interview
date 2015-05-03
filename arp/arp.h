@@ -8,6 +8,21 @@
  *
  ************************************************************************/
 
+/* Debug print - print packet content. */
+#define DEBUG 1
+
+#if DEBUG
+# define DBGPacketPrint(d, l)  ARP_DBGPacketPrint((d), (l))
+# define DBGPrintWhoAmI()  ARP_DBGPrintWhoAmI()
+#else
+# define DBGPacketPrint(d, l)
+# define DBGPrintWhoAmI()
+#endif
+
+/* Compare to IP address stored in IPADDR */
+#define ComparePIP(addr1, addr2)  (*((DWORD *) addr1) == *((DWORD *) addr2))
+
+
 #define ARP_TABLE_SIZE            8   /* By definition in 3.1 */
 #define ARP_LIFE_TIME             30  /* By definition in 3.1 */
 
