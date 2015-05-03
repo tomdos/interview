@@ -1,16 +1,54 @@
-- Dynamic allocation of cache - small size but in general size might be thousands of entries.
-  - use LL or array or array of pointers.. -> malloc shall not be used outside of init function
 
-- Win x Linux compilation, case sensitive ...
+Platform
+========
+Development platform used for the assignment was Linux and OSX. Due to this choice 
+several issues raised. The most problematic was Windows’ specific conio.h header. 
+The header is not part of the standard library on Linux and OSX and therefore 
+conditional compilation is used. Linux platform provides alternative called ncurses. 
+However I believe that main purpose of the assignment was implement the ARP and not 
+console library and therefore I didn’t use ncurses. Because of that choice, the main 
+loop doesn’t probably work in same way as on Windows. The most affected function is 
+probably ARP_SecondProcessing() which is not called every second but after key 
+press (and after 1 second period).
 
--ARPHDR - assuming that sha/tha is hw mac (6B) and spa/tpa is IP (4B)
+File utils.h has been changed. OSX already contains definition of hton* and #undef 
+has to be used here.
 
--SecondProcessing - not called every second!
+All assignment files have been renamed because linux platform is case sensitive.
 
--Single arp packet - global variable.
+Target architecture is 32-bit CPU because of DWORD definition.
 
--Request(Reply packet) - in request packet the src mac and arp sha are different
 
--When shall I return -1 in Query?
+Problems/Misunderstanding
+=========================
+The assignment has been clear in general however one unclarity occurred. I could’t
+figure out when the function ARP_Query() shall return -1. Based on my general 
+knowledge of ARP I assume that ARP protocol doesn’t care about unreachable hosts 
+and packet lost. Therefore I am not sure how to interpreted “unavailable host” 
+correctly.
 
--> End of line (DOS)!!
+My understanding and implementation in ARP_Query is following:
+- If IP is not in a table (ARP cache) send ARP request and update the table. New 
+  record doesn’t contain hw addr and flag is set to FAIL. 
+  The function returns 0.
+- If the table contains IP and state is ACTIVE (packet with ip and hw addr has 
+  been received) return hw addr. The function doesn’t send request.
+- If the table contains IP but state is FAIL return -1 and send request. This 
+  situation may be interpreted as: IP has been sent but we haven’t received any reply.
+
+
+Strange behavior
+================
+Although ARP standard allows this behavior it is quite strange that a request packet 
+has always different src mac addr and arp sha (hw addr).
+
+
+Real world
+==========
+As in the assignment description the result has several deviations from the real world. 
+
+Single packet (pArpPacket) for request and reply. 
+
+Init/Cleanup useless and global variable arpTable. There wasn’t any particular reason 
+for using *alloc() to allocate the table dynamically or any other variable.
+
