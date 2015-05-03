@@ -11,4 +11,6 @@
 
 -Request(Reply packet) - in request packet the src mac and arp sha are different
 
+-When shall I return -1 in Query?
+
 -> End of line (DOS)!!

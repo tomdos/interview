@@ -13,6 +13,16 @@
  ************************************************************************/
 #include <string.h>
 
+#define DEBUG 1
+
+#if DEBUG
+# define DBGPacketPrint(d, l)  ARP_DBGPacketPrint((d), (l))
+# define DBGPrintWhoAmI()  ARP_DBGPrintWhoAmI()
+#else
+# define DBGPacketPrint(d, l)
+# define DBGPrintWhoAmI()
+#endif
+
 void ARP_PacketReply(PENETADDR, PIPADDR, PENETADDR);
 void ARP_PacketRequest(PIPADDR);
 
@@ -232,9 +242,9 @@ void ARP_ProcessIncoming(PVOID pData, DWORD dwLen)
   pEth = pData;
   pArp = pData + sizeof(ENETHDR);
 
-  printf("ARP_ProcessIncoming.\r\n");
-  ARP_DBGPrintWhoAmI();
-  ARP_DBGPacketPrint(pData, dwLen);
+  //printf("ARP_ProcessIncoming.\r\n");
+  DBGPrintWhoAmI();
+  DBGPacketPrint(pData, dwLen);
 
   if (dwLen >= ARP_PACKET_SIZE &&
       ntohs(pEth->wProto) == ETHHDR_TYPE &&
@@ -250,7 +260,7 @@ void ARP_ProcessIncoming(PVOID pData, DWORD dwLen)
 
       /* Send ARP reply */
       ARP_PacketReply(&pEth->HwSender, &pArp->spa, &pArp->sha);
-      ARP_DBGPacketPrint(pArpPacket, ARP_PACKET_SIZE);
+      DBGPacketPrint(pArpPacket, ARP_PACKET_SIZE);
       Iface_Send(pArpPacket, ARP_PACKET_SIZE);
     }
     /* ARP reply */
@@ -397,6 +407,7 @@ void ARP_PacketFillValues(PENETADDR pEthLayerDest,
 void ARP_PacketReply(PENETADDR pEthLayerDest, PIPADDR pIPDest, PENETADDR pHwDest)
 {
   ARP_PacketFillValues(pEthLayerDest, pIPDest, pHwDest, ARPHDR_OPER_REQUEST);
+
   //ARP_DBGPacketPrint(pArpPacket, ARP_PACKET_SIZE);
 }
 
@@ -430,14 +441,15 @@ void ARP_PacketRequest(PIPADDR pIPDest)
 PENETADDR ARP_Query(PIPADDR pIPAddr)
 {
   PARPRECORD pTable;
+  PENETADDR ret;
 
-
+  ret = (PENETADDR) 0;
   pTable = ARP_TableRecordFind(pIPAddr);
   if (pTable)
   {
     if (pTable->status == ARP_TABLERECORD_FAIL)
     {
-      return (PENETADDR) -1;
+      ret = (PENETADDR) -1;
     }
     else
     {
@@ -445,8 +457,10 @@ PENETADDR ARP_Query(PIPADDR pIPAddr)
     }
   }
 
+  ARP_TableRecordAddNotAck(pIPAddr);
   ARP_PacketRequest(pIPAddr);
+  DBGPacketPrint(pArpPacket, ARP_PACKET_SIZE);
   Iface_Send(pArpPacket, ARP_PACKET_SIZE);
 
-  return (PENETADDR) 0;
+  return ret;
 }
