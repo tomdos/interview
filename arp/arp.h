@@ -75,7 +75,7 @@ typedef struct tagARPRECORD
 
 
 /*
- * Arp table - Table/Cache which is used to store arp records containing.
+ * Arp table - Table/Cache which is used to store arp records.
  */
 typedef struct tagARPTABLE
 {

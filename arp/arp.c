@@ -143,7 +143,7 @@ void ARP_TableRecordAddNotAck(PIPADDR pIPAddr)
  *
  * Function : ARP_TableAgeing
  *
- * Purpose  : Remove every records older then ARP_TABLERECORD_FREE.
+ * Purpose  : Remove every records older then ARP_LIFE_TIME (30s).
  *
  * Returns  : -
  *
@@ -350,7 +350,7 @@ void ARP_PrintAll(void)
     pRecord = &arpTable.table[i];
 
     if (pRecord->status == ARP_TABLERECORD_FREE)
-      ;//continue;
+      continue;
 
     printf("%1d  %-15s %s  %2lu\r\n",
       pRecord->status,

@@ -11,12 +11,28 @@ loop doesn’t probably work in same way as on Windows. The most affected functi
 probably ARP_SecondProcessing() which is not called every second but after key 
 press (and after 1 second period).
 
+It may happened that ARP cache shows records older than 30s. The reason is not 
+(as I hope) pore implementation but affected ARP_SecondProcessing() which is not
+called every second. Detailed information is bellow. 
+
 File utils.h has been changed. OSX already contains definition of hton* and #undef 
 has to be used here.
 
 All assignment files have been renamed because linux platform is case sensitive.
 
 Target architecture is 32-bit CPU because of DWORD definition.
+
+
+ARP table/cache ageing
+======================
+There might be two general way how to delete old records from cache. 
+- Periodically - Delete older records periodically (like ARP_SecondProcessing()). 
+  Pros: Independent on table access
+  Cons: Useless table check/access 
+
+- On demand - Delete (check) older records only when accessing to the table. 
+  Pros: ARP_SecondProcessing() is not needed and this solution would work. 
+  Cons: Useless table check/access every request/reply and may lead to ARP DOS.
 
 
 Problems/Misunderstanding
