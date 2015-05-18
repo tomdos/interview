@@ -5,20 +5,19 @@
 #include <assert.h>
 #include <ctype.h>
 
-#define BUFSIZE         100
+#define BUFSIZE         3
 #define ALPHABETSIZE    26
 #define VECTORSIZE      (ALPHABETSIZE+1)    /* size of alphabet + trailing 0 */
 #define TABLESIZE       10
 #define ASCII_A         65
 
-//FIXME array pointer
 #define is_newline(buf) (buf[0] == '\n' || (buf[0] == '\r' && buf[1] == '\n'))
 
-
+/*
+ * Main structure which keeps all data.
+ */
 typedef struct {
   char **table;         /* Table contains dependencies, first element is 'id'. */
-  size_t table_idx;     /* Next index (used size)*/
-  size_t table_size;    /* Total alloc'd size */
 } dep_table_t;
 
 
@@ -28,8 +27,9 @@ dep_table_print(dep_table_t *dep_table)
 {
   size_t i;
 
-  for (i = 0; i < dep_table->table_idx; i++)
-    printf("%s\n", dep_table->table[i]);
+  for (i = 0; i < ALPHABETSIZE; i++)
+    if (dep_table->table[i])
+      printf("%s\n", dep_table->table[i]);
 }
 
 
@@ -39,8 +39,12 @@ dep_table_init()
 {
   dep_table_t *dt;
 
-  dt = (dep_table_t *) calloc(1, sizeof(dep_table_t));
+  dt = (dep_table_t *) malloc(sizeof(dep_table_t));
   assert(dt);
+
+  /* array */
+  dt->table = (char **) calloc(1, ALPHABETSIZE * sizeof(char *));
+  assert(dt->table);
 
   return dt;
 }
@@ -52,38 +56,31 @@ dep_table_fini(dep_table_t *dep_table)
 {
   size_t i;
 
-  for (i = 0; i < dep_table->table_idx; i++)
-    free(dep_table->table[i]);
+  for (i = 0; i < ALPHABETSIZE; i++)
+    if (dep_table->table[i])
+      free(dep_table->table[i]);
 
   free(dep_table->table);
   free(dep_table);
 }
 
 
-
-void
-dep_table_resize(dep_table_t *dep_table)
-{
-  char **nt;
-  size_t size;
-
-  size = dep_table->table_size + TABLESIZE;
-  nt = (char **) realloc(dep_table->table, size * sizeof(char *));
-  assert(nt);
-  dep_table->table = nt;
-  dep_table->table_size = size;
-}
-
+/*
+ * Save vector.
+ * It is assumed that slot is not occupied.
+ */
 void
 dep_table_fill(dep_table_t *dep_table, char *vector)
 {
-  if (dep_table->table_idx == dep_table->table_size)
-    dep_table_resize(dep_table);
+  size_t idx;
 
-  dep_table->table[dep_table->table_idx] = strdup(vector);
-  assert(dep_table->table[dep_table->table_idx]);
-  dep_table->table_idx++;
+  idx = (unsigned int) vector[0] - ASCII_A;
+
+  assert(dep_table->table[idx] == NULL);
+  dep_table->table[idx] = strdup(vector);
+  assert(dep_table->table[idx]);
 }
+
 
 /*
  * Parse single line.
@@ -96,8 +93,6 @@ input_parse(char *line, char *vector, size_t vector_size)
   uint8_t whitespace;
   int i, v;
 
-  //FIXME - better iteration - skip whitespace - be carefull about end
-  //FIXME - check input - only letters (no num, no chars ...)
   v = 0;
   whitespace = 1;
   for (i = 0; line[i] != '\0'; i++) {
@@ -106,9 +101,14 @@ input_parse(char *line, char *vector, size_t vector_size)
       return 1;
     }
 
-    if (line[i] == ' ' || line[i] == '\t' || line[i] == '\n') { //FIXME - use is_neline win x lin ...
+    if (line[i] == ' ' || line[i] == '\t' || line[i] == '\n') {
       whitespace = 1;
       continue;
+    }
+
+    if (!isalpha(line[i])) {
+      fprintf(stderr, "Wrong format of line: %s", line);
+      return 1;
     }
 
     if (!whitespace) {
@@ -127,6 +127,8 @@ input_parse(char *line, char *vector, size_t vector_size)
   return 0;
 }
 
+
+/* Alloc/realloc input buffer */
 int
 input_realloc_buf(char **buf, size_t size)
 {
@@ -150,51 +152,72 @@ input_realloc_buf(char **buf, size_t size)
   return new_size;
 }
 
+
+/*
+ * Read standard input.
+ */
 int
 input_read(dep_table_t *dep_table)
 {
-  char *buf;
+  char buf[BUFSIZE];
+  char *big_buf;
   char vector[VECTORSIZE];
-  size_t buf_size;
-  size_t ret;
+  size_t big_buf_size;
+  size_t len;
 
-  buf = NULL;
-  buf_size = input_realloc_buf(&buf, 0);
+  big_buf = NULL;
+  big_buf_size = input_realloc_buf(&big_buf, 0);
 
   while (1) {
-    // FIXME - realloc
-    fgets(buf, buf_size, stdin);
+    /*
+     * Solution for a long long line.
+     */
+    memset(big_buf, 0, big_buf_size);
+    while (1) {
+      fgets(buf, BUFSIZE, stdin);
+      strncat(big_buf, buf, big_buf_size);
+      len = strlen(buf);
+      if (buf[len-1] == '\n') {
+        break;
+      }
 
-    if (feof(stdin) || is_newline(buf))
+      big_buf_size = input_realloc_buf(&big_buf, big_buf_size);
+    }
+
+    if (feof(stdin) || is_newline(big_buf))
       break;
 
-    if (input_parse(buf, vector, VECTORSIZE))
+    if (input_parse(big_buf, vector, VECTORSIZE))
       return 1;
 
     dep_table_fill(dep_table, vector);
   }
 
+  free(big_buf);
+
   return 0;
 }
 
+
+/*
+ * Return table row (dependency) for input letter. Skip first letter.
+ */
 char *
 dfs_get_row(dep_table_t *dep_table, char letter)
 {
-  size_t i;
   char *new_vector;
 
-  new_vector = NULL;
-  for (i = 0; i < dep_table->table_idx; i++) {
-    if (dep_table->table[i][0] == letter) {
-      new_vector = dep_table->table[i];
-      new_vector++;
-      break;
-    }
-  }
+  new_vector = dep_table->table[(unsigned int) letter - ASCII_A];
+  if (new_vector)
+    new_vector++;
 
   return new_vector;
 }
 
+
+/*
+ * Mark single dependency (letter)
+ */
 void
 dfs_mark(uint8_t *dep_vector, char letter)
 {
@@ -204,6 +227,10 @@ dfs_mark(uint8_t *dep_vector, char letter)
   dep_vector[idx] = 1;
 }
 
+
+/*
+ * DFS - iterate through all letters and try to go deeper.
+ */
 void
 dfs(dep_table_t *dep_table, uint8_t *dep_vector, char *vector)
 {
@@ -220,20 +247,25 @@ dfs(dep_table_t *dep_table, uint8_t *dep_vector, char *vector)
   }
 }
 
+
+/*
+ * Print dependency
+ */
 void
 dependency_print(dep_table_t *dep_table)
 {
-  //FIXME - cycle
   size_t i, j;
   uint8_t dep_vector[ALPHABETSIZE];
 
-  for (i = 0; i < dep_table->table_idx; i++) {
-    memset(dep_vector, 0, sizeof(dep_vector));
+  for (i = 0; i < ALPHABETSIZE; i++) {
+    if (dep_table->table[i] == NULL)
+      continue;
 
+    memset(dep_vector, 0, sizeof(dep_vector));
     dfs(dep_table, dep_vector, &(dep_table->table[i][1]));
 
+    /* Print dependency line */
     printf("%c  ", dep_table->table[i][0]);
-
     for (j = 0; j < ALPHABETSIZE; j++)
       if (dep_vector[j])
         printf("%c ", (uint8_t) j + ASCII_A);
