@@ -187,8 +187,10 @@ input_read(dep_table_t *dep_table)
     if (feof(stdin) || is_newline(big_buf))
       break;
 
-    if (input_parse(big_buf, vector, VECTORSIZE))
+    if (input_parse(big_buf, vector, VECTORSIZE)) {
+      free(big_buf);
       return 1;
+    }
 
     dep_table_fill(dep_table, vector);
   }
@@ -278,16 +280,21 @@ dependency_print(dep_table_t *dep_table)
 int
 main(int argc, char *argv[])
 {
+  int ret;
   dep_table_t *dep_table;
 
+  ret = 0;
   dep_table = dep_table_init();
 
   if (!input_read(dep_table)) {
     //dep_table_print(dep_table);
     dependency_print(dep_table);
   }
+  else {
+    ret = 1;
+  }
 
   dep_table_fini(dep_table);
 
-  return 0;
+  return ret;
 }
