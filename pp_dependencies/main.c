@@ -4,46 +4,97 @@
 #include <assert.h>
 
 #define BUFSIZE         100
-#define ALPHABETSIZE    26
+#define VECTORSIZE      27    /* size of alphabet + trailing 0 */
+#define TABLESIZE       10
 
 //FIXME - array x pointer ..
 #define is_newline(buf) (buf[0] == '\n' || (buf[0] == '\r' && buf[1] == '\n'))
 
+typedef struct {
+  char **table;
+  size_t table_idx;
+  size_t table_size;
+} dep_table_t;
+
+dep_table_t *dep_table;
+
+
+dep_table_t *
+dep_table_init()
+{
+  dep_table_t *dt;
+
+  dt = (dep_table_t *) calloc(1, sizeof(dep_table_t));
+  assert(dt);
+
+  return dt;
+}
+
+void
+dep_table_fini(dep_table_t **dep_table)
+{
+
+}
 
 int
-input_parse(char *line)
+dep_table_resize(dep_table_t *dep_table)
 {
-  char a,b,c;
-  char vector[ALPHABERSIZE];
-  char *token;
-  char *input;
-  int i, v;
-
-  //sscanf(line, "%c %c %c", &a, &b, &c);
-  //printf("%c-%c-%c\n", a,b,c);
-  //while ((token = strsep(&input, " \t")) != NULL)
-
-
-  //FIXME - better iteration - skip whitespace - be carefull about end
-  //FIXME - check input - only letters (no num, no chars ...)
-  v = 0;
-  for (i = 0; line[i] != '\0'; i++) {
-    if (line[i] == ' ' || line[i] == '\t' || line[i] == '\n') //FIXME - use is_neline win x lin ...
-      continue;
-
-    vector[v] = line[i];
-    v++;
-  }
-
-  for (i = 0; i < v; i++)
-    printf("%c ", vector[i]);
-  printf("\n");
 
   return 0;
 }
 
 int
-input_alloc(char **buf, size_t size)
+dep_table_fill(dep_table_t *dep_table, char *vector)
+{
+  printf("%s\n", vector);
+
+  return 0;
+}
+
+/*
+ * Building wheel: Functions like strtok or strsep didn't work as I desired.
+ */
+int
+input_parse(char *line, char *vector, size_t vector_size)
+{
+  //char vector[ALPHABETSIZE + 1];
+  char *token;
+  uint8_t whitespace;
+  int i, v;
+
+  //FIXME - better iteration - skip whitespace - be carefull about end
+  //FIXME - check input - only letters (no num, no chars ...)
+  v = 0;
+  whitespace = 1;
+  for (i = 0; line[i] != '\0'; i++) {
+    if (i >= vector_size - 1) {
+      fprintf(stderr, "Wrong format of line: %s", line);
+      return 1;
+    }
+
+    if (line[i] == ' ' || line[i] == '\t' || line[i] == '\n') { //FIXME - use is_neline win x lin ...
+      whitespace = 1;
+      continue;
+    }
+
+    if (!whitespace) {
+      fprintf(stderr, "Wrong format of line: %s", line);
+      return 1;
+    }
+
+    whitespace = 0;
+
+    vector[v] = line[i];
+    v++;
+  }
+
+  vector[v] = '\0';
+
+  return 0;
+}
+
+int
+input_realloc_buf(char **buf, size_t size)
 {
   size_t new_size;
   char *new_buf;
@@ -66,13 +117,15 @@ input_alloc(char **buf, size_t size)
 }
 
 int
-input_read()
+input_read(dep_table_t *dep_table)
 {
   char *buf;
+  char vector[VECTORSIZE];
   size_t buf_size;
   size_t ret;
 
-  buf_size = input_alloc(&buf, 0);
+  buf = NULL;
+  buf_size = input_realloc_buf(&buf, 0);
 
   while (1) {
     // FIXME - realloc
@@ -82,9 +135,9 @@ input_read()
     if (feof(stdin) || is_newline(buf))
       break;
 
-    input_parse(buf);
+    input_parse(buf, vector, VECTORSIZE);
+    dep_table_fill(dep_table, vector);
   }
-
 
   return 0;
 }
@@ -94,6 +147,11 @@ input_read()
 int
 main(int argc, char *argv[])
 {
-  input_read();
+  dep_table_t *dep_table;
+
+  dep_table = dep_table_init();
+
+  input_read(dep_table);
+
   return 0;
 }
