@@ -168,7 +168,52 @@ input_read(dep_table_t *dep_table)
   return 0;
 }
 
+char *
+dfs_get_row(dep_table_t *dep_table, char letter)
+{
+  size_t i;
+  char *new_vector;
 
+  new_vector = NULL;
+  for (i = 0; i < dep_table->table_idx; i++) {
+    if (dep_table->table[i][0] == letter) {
+      new_vector = dep_table->table[i];
+      break;
+    }
+  }
+
+  assert(new_vector);
+  new_vector++;
+
+  return new_vector;
+}
+
+void
+dfs(dep_table_t *dep_table, char *vector)
+{
+  char *new_vector;
+  char letter;
+
+  while (*vector != '\0') {
+    letter = *vector;
+    new_vector = dfs_get_row(dep_table, letter);
+    dfs(dep_table, new_vector);
+    printf("%c ", letter);
+    vector++;
+  }
+}
+
+void
+dependency_print(dep_table_t *dep_table)
+{
+  //FIXME - cycle
+  size_t i;
+
+  for (i = 0; i < dep_table->table_idx; i++) {
+    printf("%c  ", dep_table->table[i][0]);
+    dfs(dep_table, &(dep_table->table[i][1]));
+  }
+}
 
 
 int
@@ -179,8 +224,8 @@ main(int argc, char *argv[])
   dep_table = dep_table_init();
 
   input_read(dep_table);
-  dep_table_print(dep_table);
-
+  //dep_table_print(dep_table);
+  dependency_print(dep_table);
 
   return 0;
 }
