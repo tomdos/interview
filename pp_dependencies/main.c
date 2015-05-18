@@ -19,6 +19,15 @@ typedef struct {
 dep_table_t *dep_table;
 
 
+void
+dep_table_print(dep_table_t *dep_table)
+{
+  size_t i;
+
+  for (i = 0; i < dep_table->table_idx; i++)
+    printf("%s\n", dep_table->table[i]);
+}
+
 dep_table_t *
 dep_table_init()
 {
@@ -36,17 +45,33 @@ dep_table_fini(dep_table_t **dep_table)
 
 }
 
-int
+void
 dep_table_resize(dep_table_t *dep_table)
 {
+  char **nt;
+  size_t size;
 
-  return 0;
+  size = dep_table->table_size + TABLESIZE;
+  nt = (char **) realloc(dep_table->table, size * sizeof(char *));
+  assert(nt);
+  dep_table->table = nt;
+  dep_table->table_size = size;
 }
 
 int
 dep_table_fill(dep_table_t *dep_table, char *vector)
 {
-  printf("%s\n", vector);
+  //size_t len;
+  //char *table_vector;
+
+  if (dep_table->table_idx == dep_table->table_size)
+    dep_table_resize(dep_table);
+
+  dep_table->table[dep_table->table_idx] = strdup(vector);
+  assert(dep_table->table[dep_table->table_idx]);
+  dep_table->table_idx++;
+
+  //printf("%s\n", vector);
 
   return 0;
 }
@@ -137,10 +162,12 @@ input_read(dep_table_t *dep_table)
 
     input_parse(buf, vector, VECTORSIZE);
     dep_table_fill(dep_table, vector);
+    //printf("%s\n", vector);
   }
 
   return 0;
 }
+
 
 
 
@@ -152,6 +179,8 @@ main(int argc, char *argv[])
   dep_table = dep_table_init();
 
   input_read(dep_table);
+  dep_table_print(dep_table);
+
 
   return 0;
 }
