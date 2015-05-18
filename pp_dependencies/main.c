@@ -11,18 +11,18 @@
 #define TABLESIZE       10
 #define ASCII_A         65
 
-//FIXME - array x pointer ..
+//FIXME array pointer
 #define is_newline(buf) (buf[0] == '\n' || (buf[0] == '\r' && buf[1] == '\n'))
 
+
 typedef struct {
-  char **table;
-  size_t table_idx;
-  size_t table_size;
+  char **table;         /* Table contains dependencies, first element is 'id'. */
+  size_t table_idx;     /* Next index (used size)*/
+  size_t table_size;    /* Total alloc'd size */
 } dep_table_t;
 
-dep_table_t *dep_table;
 
-
+/* Debug print */
 void
 dep_table_print(dep_table_t *dep_table)
 {
@@ -32,6 +32,8 @@ dep_table_print(dep_table_t *dep_table)
     printf("%s\n", dep_table->table[i]);
 }
 
+
+/* Main init of table structure */
 dep_table_t *
 dep_table_init()
 {
@@ -43,11 +45,21 @@ dep_table_init()
   return dt;
 }
 
-void
-dep_table_fini(dep_table_t **dep_table)
-{
 
+/* Clean up - free table structure */
+void
+dep_table_fini(dep_table_t *dep_table)
+{
+  size_t i;
+
+  for (i = 0; i < dep_table->table_idx; i++)
+    free(dep_table->table[i]);
+
+  free(dep_table->table);
+  free(dep_table);
 }
+
+
 
 void
 dep_table_resize(dep_table_t *dep_table)
@@ -62,31 +74,24 @@ dep_table_resize(dep_table_t *dep_table)
   dep_table->table_size = size;
 }
 
-int
+void
 dep_table_fill(dep_table_t *dep_table, char *vector)
 {
-  //size_t len;
-  //char *table_vector;
-
   if (dep_table->table_idx == dep_table->table_size)
     dep_table_resize(dep_table);
 
   dep_table->table[dep_table->table_idx] = strdup(vector);
   assert(dep_table->table[dep_table->table_idx]);
   dep_table->table_idx++;
-
-  //printf("%s\n", vector);
-
-  return 0;
 }
 
 /*
- * Building wheel: Functions like strtok or strsep didn't work as I desired.
+ * Parse single line.
+ * Functions like strtok or strsep didn't work as I want.
  */
 int
 input_parse(char *line, char *vector, size_t vector_size)
 {
-  //char vector[ALPHABETSIZE + 1];
   char *token;
   uint8_t whitespace;
   int i, v;
@@ -159,14 +164,14 @@ input_read(dep_table_t *dep_table)
   while (1) {
     // FIXME - realloc
     fgets(buf, buf_size, stdin);
-    //printf("%s", buf);
 
     if (feof(stdin) || is_newline(buf))
       break;
 
-    input_parse(buf, vector, VECTORSIZE);
+    if (input_parse(buf, vector, VECTORSIZE))
+      return 1;
+
     dep_table_fill(dep_table, vector);
-    //printf("%s\n", vector);
   }
 
   return 0;
@@ -245,9 +250,12 @@ main(int argc, char *argv[])
 
   dep_table = dep_table_init();
 
-  input_read(dep_table);
-  //dep_table_print(dep_table);
-  dependency_print(dep_table);
+  if (!input_read(dep_table)) {
+    //dep_table_print(dep_table);
+    dependency_print(dep_table);
+  }
+
+  dep_table_fini(dep_table);
 
   return 0;
 }
