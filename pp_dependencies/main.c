@@ -1,11 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <assert.h>
+#include <ctype.h>
 
 #define BUFSIZE         100
-#define VECTORSIZE      27    /* size of alphabet + trailing 0 */
+#define ALPHABETSIZE    26
+#define VECTORSIZE      (ALPHABETSIZE+1)    /* size of alphabet + trailing 0 */
 #define TABLESIZE       10
+#define ASCII_A         65
 
 //FIXME - array x pointer ..
 #define is_newline(buf) (buf[0] == '\n' || (buf[0] == '\r' && buf[1] == '\n'))
@@ -109,7 +113,7 @@ input_parse(char *line, char *vector, size_t vector_size)
 
     whitespace = 0;
 
-    vector[v] = line[i];
+    vector[v] = toupper(line[i]);
     v++;
   }
 
@@ -178,18 +182,25 @@ dfs_get_row(dep_table_t *dep_table, char letter)
   for (i = 0; i < dep_table->table_idx; i++) {
     if (dep_table->table[i][0] == letter) {
       new_vector = dep_table->table[i];
+      new_vector++;
       break;
     }
   }
-
-  assert(new_vector);
-  new_vector++;
 
   return new_vector;
 }
 
 void
-dfs(dep_table_t *dep_table, char *vector)
+dfs_mark(uint8_t *dep_vector, char letter)
+{
+  size_t idx;
+
+  idx =  (unsigned int) letter - ASCII_A;
+  dep_vector[idx] = 1;
+}
+
+void
+dfs(dep_table_t *dep_table, uint8_t *dep_vector, char *vector)
 {
   char *new_vector;
   char letter;
@@ -197,8 +208,9 @@ dfs(dep_table_t *dep_table, char *vector)
   while (*vector != '\0') {
     letter = *vector;
     new_vector = dfs_get_row(dep_table, letter);
-    dfs(dep_table, new_vector);
-    printf("%c ", letter);
+    if (new_vector)
+      dfs(dep_table, dep_vector, new_vector);
+    dfs_mark(dep_vector, letter);
     vector++;
   }
 }
@@ -207,11 +219,21 @@ void
 dependency_print(dep_table_t *dep_table)
 {
   //FIXME - cycle
-  size_t i;
+  size_t i, j;
+  uint8_t dep_vector[ALPHABETSIZE];
 
   for (i = 0; i < dep_table->table_idx; i++) {
+    memset(dep_vector, 0, sizeof(dep_vector));
+
+    dfs(dep_table, dep_vector, &(dep_table->table[i][1]));
+
     printf("%c  ", dep_table->table[i][0]);
-    dfs(dep_table, &(dep_table->table[i][1]));
+
+    for (j = 0; j < ALPHABETSIZE; j++)
+      if (dep_vector[j])
+        printf("%c ", (uint8_t) j + ASCII_A);
+
+    printf("\n");
   }
 }
 
