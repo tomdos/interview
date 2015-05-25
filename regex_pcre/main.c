@@ -1,8 +1,10 @@
+#define PCRE2_CODE_UNIT_WIDTH 8
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <stdint.h>
+#include <pcre2.h>
 
 #define		BUFSIZE		512
 
@@ -187,6 +189,8 @@ main(int argc, char *argv[])
 {
 	char *input_pattern; 
 	char *regex;
+	pcre2_code *re;
+	
 
 	if (argc != 2) {
 		fprintf(stderr, "Usage: regex <pattern>\n");

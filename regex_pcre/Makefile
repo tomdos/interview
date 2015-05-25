@@ -1,6 +1,6 @@
 CC=gcc
-LFLAGS=
-CFLAGS=-ggdb -O0
+LFLAGS=-L/tmp/pcre2-10.10/COMP/lib
+CFLAGS=-ggdb -O0 -I/tmp/pcre2-10.10/COMP/include
 
 regex: main.c
 	$(CC) $(CFLAGS) $(LFLAGS) $^ -o regex
