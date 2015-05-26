@@ -7,9 +7,10 @@
 #include <pcre2.h>
 #include "re.h"
 
-#define		BUFSIZE		512
-#define		USE_PCRE2POSIX	1
-#define		USE_INPUT_ARG
+#define		BUFSIZE						512
+#define		USE_PCRE2POSIX		1
+#define		USE_INPUT_STDIO		1
+#define		USE_VERBOSE				0
 
 //FIXME - * at least something (shoud be used + insted)
 #if USE_PCRE2POSIX
@@ -17,9 +18,9 @@
  #define		PATTERN_SPACE		"(([^[:space:]]*\\s[^[:space:]]*){%u})"
 
 //"((\\s|[^[:space:]]+\\s|\\s[^[:space:]]+){%u})"
-
 //"(([^[:space:]]*\\s){%u})" //working
 //"(([^\\s]+[:space:][^[:space:]]*){%u})"
+
  #define		PATTERN_GREEDY	"(.*)"
 #else
  #define		PATTERN_WORD		"(\\S*)"
@@ -202,23 +203,36 @@ main(int argc, char *argv[])
 	char *regex;
 	pcre2_code *re;
 	regex_t *preg;
+	int ret;
 	
-#if 0
+
+#if USE_INPUT_STDIO
 	if (argc != 2) {
 		fprintf(stderr, "Usage: regex <pattern>\n");
 		exit(1);
 	}
 
-
 	input_pattern = argv[1];
 	regex = input_pattern_parser(input_pattern);
 	preg = re_posix_comp(regex);
+
+#if USE_VERBOSE
+	printf("regex: '%s'\n", regex);
+#endif
 	
 	while ((input_line = input_read())) {
-		printf("%s - %s\n", input_line, regex);
-		re_posix_exec(preg, input_line);		
-		printf("\n");
+		ret = re_posix_exec(preg, input_line);
+ #if USE_VERBOSE
+		if (ret == 1)
+			printf("%s - YES\n", input_line);
+		else if (ret == 0)
+			printf("%s - NO\n", input_line);
+ #else
+		if (ret == 1)
+			printf("%s\n", input_line);
+ #endif
 	}
+	
 #else
 	if (argc != 3) {
 		fprintf(stderr, "Usage: regex <pattern> <string>\n");

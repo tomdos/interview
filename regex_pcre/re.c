@@ -142,7 +142,7 @@ re_posix_comp(const char *regex)
 }
 
 
-void
+int
 re_posix_exec(regex_t *preg, const char *subject)
 {
   int ret;
@@ -153,12 +153,14 @@ re_posix_exec(regex_t *preg, const char *subject)
   memset(pmatch, 0, sizeof(pmatch));
   
   ret = regexec(preg, subject, 3, pmatch, 0);
-  if (ret) {
-    char errbuf[256];
+  if (ret != 0 && ret != REG_NOMATCH) {
+    char errbuf[256]; //FIXME
     regerror(ret, preg, errbuf, 256);
     fprintf(stderr, "%s\n", errbuf);
-    return;
+    return -1;
   }
+  
+  return (REG_NOMATCH == ret) ? 0 : 1;
   
   printf("Match:\n");
   i=1;

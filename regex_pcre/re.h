@@ -10,6 +10,6 @@ pcre2_code * re_patter_init(char *regex);
 int re_pattern_match(pcre2_code *re, char *input);
 
 regex_t * re_posix_comp(const char *regex);
-void re_posix_exec(regex_t *preg, const char *subject);
+int re_posix_exec(regex_t *preg, const char *subject);
 
 #endif
