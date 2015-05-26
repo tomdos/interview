@@ -83,6 +83,8 @@ test_regex 0 '%{1S0}' "AX BX CX"
 test_regex 0 '%{1S1}' "AX BX CX"
 test_regex 1 '%{1S2}' "AX BX CX"
 test_regex 0 '%{1S3}' "AX BX CX"
+test_regex 0 '%{1S2}%{1S2}' "AX BX CX DX"
+test_regex 1 '%{1S0}%{1S2}%{1S0}' "AX BX CX"
 
 echo "My tests - greedy: "
 test_regex 1 '%{0G}' "AXBXCX"
