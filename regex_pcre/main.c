@@ -5,11 +5,12 @@
 #include <assert.h>
 #include <stdint.h>
 #include <pcre2.h>
+#include "re.h"
 
 #define		BUFSIZE		512
 
 #define		PATTERN_WORD		"(\\S*)"
-#define		PATTERN_SPACE		"((\\S*\\s\\S*){%u}"
+#define		PATTERN_SPACE		"((\\S*\\s\\S*){%u})"
 #define		PATTERN_GREEDY	"(.*)"
 
 
@@ -172,6 +173,7 @@ input_read(const char *pattern)
 		len = strlen(buf);
 		buf[len-1]='\0'; // remove nl
 
+
 		if (feof(stdin))
 			break;
 
@@ -200,9 +202,31 @@ main(int argc, char *argv[])
 
 	input_pattern = argv[1];
 	regex = input_pattern_parser(input_pattern);
+
+#if 0
+	re = re_patter_init(regex);
+	char buf[BUFSIZE];
+	int len;
+	fgets(buf, BUFSIZE, stdin);
+	len = strlen(buf);
+	buf[len-1]='\0'; // remove nl
 	
-	//printf("%s - %s\n", input_pattern, regex);
-	input_read(regex);
+	printf("%s - %s\n", buf, regex);
+#endif	
+	//re_pattern_match(re, buf);	
+	
+/////////////////
+	regex_t *preg;
+	
+	char *buf2;
+	buf2=malloc(200);
+	strcpy(buf2,"A B C D E F");
+	
+	preg = re_posix_comp(regex);
+	re_posix_exec(preg, buf2);
+////////////////
+	
+	//input_read(regex);
 	
 	return 0;
 }
