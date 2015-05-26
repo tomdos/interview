@@ -14,13 +14,15 @@
 
 //FIXME - * at least something (shoud be used + insted)
 #if USE_PCRE2POSIX
- #define		PATTERN_WORD		"([^[:space:]]*)"
- #define		PATTERN_SPACE		"(([^[:space:]]*\\s[^[:space:]]*){%u})"
-
+ #define		PATTERN_WORD		"(.*)"
+//"([^[:space:]]*)"
+ /* more then one space */
+ #define		PATTERN_SPACE		"(([^[:space:]]*\\s[^[:space:]]*){%u})" 
+ /* space modifier - no space */
+ #define		PATTERN_NOSPACE	"([^[:space:]]*)" 
 //"((\\s|[^[:space:]]+\\s|\\s[^[:space:]]+){%u})"
 //"(([^[:space:]]*\\s){%u})" //working
 //"(([^\\s]+[:space:][^[:space:]]*){%u})"
-
  #define		PATTERN_GREEDY	"(.*)"
 #else
  #define		PATTERN_WORD		"(\\S*)"
@@ -75,7 +77,7 @@ input_pattern_parser_token(const char *start, char *rstring, size_t rstring_len)
 	greedy = 0;
 	whitespace = 0;
 	p = start;
-	if (*p++ != '$') return -1;
+	if (*p++ != '%') return -1;
 	if (*p++ != '{') return -1;
 	
 	/* Identifier */
@@ -108,7 +110,10 @@ input_pattern_parser_token(const char *start, char *rstring, size_t rstring_len)
 		assert(ret > 0 && ret < rstring_len);
 	}
 	else if (whitespace) {
-		ret = snprintf(rstring, rstring_len, PATTERN_SPACE, whitespace_num);
+		if (whitespace_num == 0)
+			ret = snprintf(rstring, rstring_len, PATTERN_NOSPACE);
+		else
+			ret = snprintf(rstring, rstring_len, PATTERN_SPACE, whitespace_num);
 		assert(ret > 0 && ret < rstring_len);
 	}
 	else {
@@ -148,7 +153,7 @@ input_pattern_parser(const char *pattern)
 	regex[j++] = '^';
 	while (pattern[i]) {
 		//FIXME - escape
-		if (pattern[i] == '$') {
+		if (pattern[i] == '%') {
 			ret = input_pattern_parser_token(&pattern[i], regex_token, BUFSIZE);
 			if (ret == -1)
 				return NULL;
