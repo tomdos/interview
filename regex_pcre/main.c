@@ -8,11 +8,24 @@
 #include "re.h"
 
 #define		BUFSIZE		512
+#define		USE_PCRE2POSIX	1
+#define		USE_INPUT_ARG
 
-#define		PATTERN_WORD		"(\\S*)"
-#define		PATTERN_SPACE		"((\\S*\\s\\S*){%u})"
-#define		PATTERN_GREEDY	"(.*)"
+//FIXME - * at least something (shoud be used + insted)
+#if USE_PCRE2POSIX
+ #define		PATTERN_WORD		"([^[:space:]]*)"
+ #define		PATTERN_SPACE		"(([^[:space:]]*\\s[^[:space:]]*){%u})"
 
+//"((\\s|[^[:space:]]+\\s|\\s[^[:space:]]+){%u})"
+
+//"(([^[:space:]]*\\s){%u})" //working
+//"(([^\\s]+[:space:][^[:space:]]*){%u})"
+ #define		PATTERN_GREEDY	"(.*)"
+#else
+ #define		PATTERN_WORD		"(\\S*)"
+ #define		PATTERN_SPACE		"((\\S*\\s\\S*){%u})"
+ #define		PATTERN_GREEDY	"(.*)"
+#endif
 
 #if 0
 /* Alloc/realloc input buffer */
@@ -161,27 +174,22 @@ process_line(const char *line, const char *pattern)
 	return 0;
 }
 
-int
-input_read(const char *pattern)
+char *
+input_read()
 {
-	char buf[BUFSIZE];
+	static char buf[BUFSIZE];
 	size_t len;
 
-	while (1) {
-		//FIXME - long line, input check
-		fgets(buf, BUFSIZE, stdin);
-		len = strlen(buf);
-		buf[len-1]='\0'; // remove nl
+	//FIXME - long line, input check
+	fgets(buf, BUFSIZE, stdin);
+	len = strlen(buf);
+	buf[len-1]='\0'; // remove nl
 
 
-		if (feof(stdin))
-			break;
+	if (feof(stdin))
+		return NULL;
 
-		if (process_line(buf, pattern))
-			return 1;
-	}
-
-	return 0;
+	return buf;
 }
 
 
@@ -189,11 +197,13 @@ input_read(const char *pattern)
 int
 main(int argc, char *argv[])
 {
-	char *input_pattern; 
+	char *input_pattern;
+	char *input_line;
 	char *regex;
 	pcre2_code *re;
+	regex_t *preg;
 	
-
+#if 0
 	if (argc != 2) {
 		fprintf(stderr, "Usage: regex <pattern>\n");
 		exit(1);
@@ -202,31 +212,30 @@ main(int argc, char *argv[])
 
 	input_pattern = argv[1];
 	regex = input_pattern_parser(input_pattern);
-
-#if 0
-	re = re_patter_init(regex);
-	char buf[BUFSIZE];
-	int len;
-	fgets(buf, BUFSIZE, stdin);
-	len = strlen(buf);
-	buf[len-1]='\0'; // remove nl
+	preg = re_posix_comp(regex);
 	
-	printf("%s - %s\n", buf, regex);
-#endif	
-	//re_pattern_match(re, buf);	
+	while ((input_line = input_read())) {
+		printf("%s - %s\n", input_line, regex);
+		re_posix_exec(preg, input_line);		
+		printf("\n");
+	}
+#else
+	if (argc != 3) {
+		fprintf(stderr, "Usage: regex <pattern> <string>\n");
+		exit(1);
+	}
 	
-/////////////////
-	regex_t *preg;
+	input_pattern = argv[1];
+	input_line = argv[2];
+	regex = input_pattern_parser(input_pattern);
+	printf("%s - %s\n", input_line, regex);
 	
-	char *buf2;
-	buf2=malloc(200);
-	strcpy(buf2,"A B C D E F");
+	//re = re_patter_init(regex);
+	//re_pattern_match(re, input_line);	
 	
 	preg = re_posix_comp(regex);
-	re_posix_exec(preg, buf2);
-////////////////
-	
-	//input_read(regex);
+	re_posix_exec(preg, input_line);		
+#endif	
 	
 	return 0;
 }

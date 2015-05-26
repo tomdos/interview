@@ -111,7 +111,7 @@ re_pattern_match(pcre2_code *re, char *input)
     {
     PCRE2_SPTR substring_start = subject + ovector[2*i];
     size_t substring_length = ovector[2*i+1] - ovector[2*i];
-    printf("%2d: %.*s\n", i, (int)substring_length, (char *)substring_start);
+    printf("%2d: '%.*s'\n", i, (int)substring_length, (char *)substring_start);
     }
     
   return 0;
@@ -131,8 +131,12 @@ re_posix_comp(const char *regex)
   assert(preg);
   
   ret = regcomp(preg, regex, 0);
-  if (ret < 0)
-    fprintf(stderr, "posix comp error\n");
+  if (ret) {
+    char errbuf[256];
+    regerror(ret, preg, errbuf, 256);    
+    fprintf(stderr, "posix comp error: %s\n", errbuf);
+    exit(1);
+  }
   
   return preg;
 }
@@ -144,12 +148,23 @@ re_posix_exec(regex_t *preg, const char *subject)
   int ret;
   size_t nmatch;
   regmatch_t pmatch[3];
+  int i;
   
+  memset(pmatch, 0, sizeof(pmatch));
   
   ret = regexec(preg, subject, 3, pmatch, 0);
   if (ret) {
     char errbuf[256];
     regerror(ret, preg, errbuf, 256);
     fprintf(stderr, "%s\n", errbuf);
+    return;
   }
+  
+  printf("Match:\n");
+  i=1;
+  while (i < 3 && pmatch[i].rm_so != -1) {
+    printf("\t'%.*s'\n", pmatch[i].rm_eo-pmatch[i].rm_so, &subject[pmatch[i].rm_so]);
+    i++;
+  }
+  
 }
