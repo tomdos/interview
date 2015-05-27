@@ -9,7 +9,7 @@
 
 #define		GENERAL_BUFSIZE		512
 #define		USE_PCRE2POSIX		1
-#define		USE_INPUT_STDIO		1
+#define		USE_INPUT_STDIO		0
 #define		USE_VERBOSE				1
 
 //FIXME - * at least something (shoud be used + insted)
@@ -25,37 +25,35 @@
 //"(([^[:space:]]*\\s){%u})" //working
 //"(([^\\s]+[:space:][^[:space:]]*){%u})"
  #define		PATTERN_GREEDY	"(.*)"
+
+
 #else
  #define		PATTERN_WORD		"(\\S*)"
  #define		PATTERN_SPACE		"((\\S*\\s\\S*){%u})"
  #define		PATTERN_GREEDY	"(.*)"
 #endif
 
-#if 0
+
 /* Alloc/realloc input buffer */
-int
-input_realloc_buf(char **buf, size_t size)
+size_t
+input_read_realloc(char **buf, size_t size)
 {
 	size_t new_size;
 	char *new_buf;
 
-	assert(size >= 0);
+	/* New buff alloc */
+	if (size == 0)
+		*buf = NULL;
+		
 	new_size = size + GENERAL_BUFSIZE;
 
 	new_buf = realloc(*buf, new_size);
-	if (new_buf == NULL) {
-		if (size > 0)
-			free(buf);
-
-		perror("Input alloc failed.\n");
-		exit(1);
-	}
-
+	assert(new_buf);
 	*buf = new_buf;
 
 	return new_size;
 }
-#endif
+
 
 
 /*
@@ -157,8 +155,12 @@ input_pattern_parser_token(char *start, char *rstring, size_t rstring_len)
 }
 
 
+/*
+ * Add src to dest. If dest' size is not big enough then realloc dest.
+ * Return dest or realloc'd dest with content of src.
+ */
 char *
-string_concat(char *dest, size_t dest_len, size_t *dest_size, const char *src, size_t src_len)
+memory_concat(char *dest, size_t dest_pos, size_t *dest_size, const char *src, size_t src_size)
 {
 	char *new_dest;
 	size_t new_size;
@@ -166,9 +168,8 @@ string_concat(char *dest, size_t dest_len, size_t *dest_size, const char *src, s
 	new_dest = dest;
 	
 	/* Resize input buffer is necessary. */
-	if ((*dest_size - dest_len) < src_len) {
-		//resize
-		new_size = (GENERAL_BUFSIZE < src_len) ? GENERAL_BUFSIZE + src_len : GENERAL_BUFSIZE;
+	if ((*dest_size - dest_pos) < src_size) {
+		new_size = (GENERAL_BUFSIZE < src_size) ? GENERAL_BUFSIZE + src_size : 1;
 		new_dest = (char *) realloc(dest, new_size);
 		assert(new_dest);
 		
@@ -176,31 +177,38 @@ string_concat(char *dest, size_t dest_len, size_t *dest_size, const char *src, s
 	}
 	
 	/* Must always fit because of above test. */
-	strncat(new_dest, src, src_len);
+	memcpy(&new_dest[dest_pos], src, src_size);
 	
 	return new_dest;
 }
 
+
 /*
  * Parse input pattern (whole input pattern string) and return supported PCRE regex.
+ * Return alloc'd string or NULL in case of error.
+ * Return value muset be freed!
  */
 char *
 input_pattern_parser(char *pattern)
 {
 	char *regex;
+	size_t regex_size;
 	char regex_token[GENERAL_BUFSIZE];
 	size_t len;
 	size_t i, j;
 	int ret;
 	
 	//FIXME - realloc the buffer 
-	regex = (char *) malloc(GENERAL_BUFSIZE);
+	regex_size = GENERAL_BUFSIZE;
+	regex = (char *) malloc(sizeof(char) * regex_size);
 	assert(regex);
 	
 	//FIXME - check buffer len
 	i = 0;
 	j = 0;
-	regex[j++] = '^';
+	//regex[j++] = '^';
+	regex = memory_concat(regex, j, &regex_size, "^", 1); 
+	j++;
 	while (pattern[i]) {
 		//FIXME - escape
 		if (pattern[i] == '%') {
@@ -209,33 +217,35 @@ input_pattern_parser(char *pattern)
 				return NULL;
 				
 			i += ret;
-			strcat(&regex[j], regex_token); //FIXME
-			j += strlen(regex_token);
+			len = strlen(regex_token);
+			//strcat(&regex[j], regex_token); //FIXME
+			regex = memory_concat(regex, j, &regex_size, regex_token, len);
+			j += len;
 		}
 		else {
-			regex[j] = pattern[i];
+			//regex[j] = pattern[i];
+			regex = memory_concat(regex, j, &regex_size, &pattern[i], 1);
 			i++;
 			j++;
 		}
 	}
-	regex[j] = '$';
+	//regex[j] = '$';
 	//FIXME null??
+	
+	regex = memory_concat(regex, j, &regex_size, "$", 1);
+	j++;
+	regex = memory_concat(regex, j, &regex_size, "\0", 1);
 	
 	return regex;
 }
 
-int
-process_line(const char *line, const char *pattern)
-{
-	printf("%s - %s\n", line, pattern);
-	return 0;
-}
 
 char *
 input_read()
 {
 	static char buf[GENERAL_BUFSIZE];
 	size_t len;
+	//size_t idx;
 
 	//FIXME - long line, input check
 	fgets(buf, GENERAL_BUFSIZE, stdin);
@@ -261,7 +271,7 @@ main(int argc, char *argv[])
 	regex_t *preg;
 	int ret;
 	
-
+/* USE STDIO */
 #if USE_INPUT_STDIO
 	if (argc != 2) {
 		fprintf(stderr, "Usage: regex <pattern>\n");
@@ -289,6 +299,7 @@ main(int argc, char *argv[])
  #endif
 	}
 	
+/* USE ARGS */
 #else
 	if (argc != 3) {
 		fprintf(stderr, "Usage: regex <pattern> <string>\n");
@@ -304,7 +315,17 @@ main(int argc, char *argv[])
 	//re_pattern_match(re, input_line);	
 	
 	preg = re_posix_comp(regex);
-	re_posix_exec(preg, input_line);		
+	ret = re_posix_exec(preg, input_line);		
+	#if USE_VERBOSE
+		if (ret == 1)
+			printf("%s - YES\n", input_line);
+		else if (ret == 0)
+			printf("%s - NO\n", input_line);
+	#else
+		if (ret == 1)
+			printf("%s\n", input_line);
+	#endif
+		
 #endif	
 	
 	return 0;
