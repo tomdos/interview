@@ -63,7 +63,7 @@ function test_debug_regex()
   echo "========================================================"
   echo "'$pattern' =~ '$input'"
   
-  ./regex "$pattern" "$input"
+  echo "$input" | ./regex "$pattern"
 }
 
 function test_regex()
