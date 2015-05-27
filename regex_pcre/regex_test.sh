@@ -125,15 +125,18 @@ test_regex 1 'bar %{0G} foo %{1}' "bar foo bar foo bar foo bar foo"
 
 ###### My tests
 echo "My tests - general: "
-test_regex 1 '%{0}' ""  # XXX ???
+test_regex 1 '%{0}' ""  # email - ok
 test_regex 1 'AX %{0} EX %{1}' "AX BX CX DX EX FX"
 test_regex 1 'AX %{0} %{1}' "AX BX CX DX EX FX"
 test_regex 1 'AX %{0}%{1}%{2}' "AX BX CX"
-test_regex 1 '%{0}%{1}%{2}' "AXBXCX" # XXX
+test_regex 1 '%{0}%{1}%{2}' "AXBXCX" 
+
+test_regex 1 'AX %{0} CX %{1}' "AX BX CX " # email - ok
+test_regex 0 'AX %{0} CX %{1}' "AX BX CX"  # email - fail
 
 echo "My tests - spaces: "
-test_regex 1 '%{1S0}' ""  # XXX ???
-test_regex 1 '%{1S1}' " "  # XXX ???
+test_regex 1 '%{1S0}' ""   # email - fail
+test_regex 1 '%{1S1}' " "  # email  - ok
 test_regex 0 '%{1S0}' " AX "
 test_regex 0 '%{1S1}' " AX "
 test_regex 1 '%{1S2}' " AX "
@@ -146,14 +149,14 @@ test_regex 0 '%{1S2}%{1S2}' "AX BX CX DX"
 test_regex 1 '%{1S0}%{1S2}%{1S0}' "AX BX CX"
 
 echo "My tests - greedy: "
-test_regex 1 '%{0G}' ""  # XXX ???
+test_regex 1 '%{0G}' ""  # email - ok
 test_regex 1 '%{0G}' "AXBXCX"
 test_regex 1 'A%{0G}X' "AXBXCX"
 test_regex 0 'A%{0G} X' "AXBXCX"
-test_regex 0 'AXBXCX%{0G}' "AXBXCX" # XXX should probably fail
+test_regex 1 'AXBXCX%{0G}' "AXBXCX" 
 
 echo "My tests - mix: "
-test_regex 0 'AXBXC%{0G}%{1}' "AXBXCX" # XXX should probably fail
+test_regex 1 'AXBXC%{0G}%{1}' "AXBXCX" 
 test_regex 1 '%{0G}%{1S5}%{2}' "AX BX CX DX EX FX"
 test_regex 1 '%{0G}%{1S0}%{2}' "AX BX CX DX EX FX"
 test_regex 0 '%{0G}%{1S6}%{2}' "AX BX CX DX EX FX"
