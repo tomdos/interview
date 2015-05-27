@@ -9,7 +9,15 @@
 
 FAIL_COUNTER=0;
 
-function test_regex()
+# Debug mode - run the program in verbose mode
+if [ "X$1" == "X-d" ]; then
+  DEBUG="1"
+else
+  DEBUG="0"
+fi
+
+
+function test_unit_regex()
 {
   match=$1    # expectation - 1-matched, 0-not
   pattern=$2
@@ -35,7 +43,8 @@ function test_regex()
   echo "'$input' =~ '$pattern'"
 }
 
-function print_result()
+
+function print_unit_result()
 {
   echo "========================="
   if [ "$FAIL_COUNTER" == "0" ]; then
@@ -44,6 +53,35 @@ function print_result()
     echo "TES FAILED - errors: $FAIL_COUNTER"
   fi
   echo "========================="
+}
+
+function test_debug_regex()
+{
+  pattern=$1
+  input=$2
+  
+  echo "========================================================"
+  echo "'$pattern' =~ '$input'"
+  
+  ./regex "$pattern" "$input"
+}
+
+function test_regex()
+{
+  match=$1
+  pattern=$2
+  input=$3
+  
+  if [ "$DEBUG" == "0" ]; then
+    test_unit_regex "$match" "$pattern" "$input"
+  else
+    test_debug_regex "$pattern" "$input"
+  fi
+}
+
+function print_result()
+{
+  [ "$DEBUG" == "0" ] && print_unit_result
 }
 
 
