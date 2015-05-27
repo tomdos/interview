@@ -13,7 +13,7 @@ $input = $ARGV[1];
 #$pattern = 'foo (\w+) is a (\w+)';
 
 if ($input =~ /$pattern/) {
-	print "Matched: $1  - $2 \n";
+	print "Matched: '$1'  - '$2' - '$3'\n";
 } else {
 	print "Not matched.\n";
 }
