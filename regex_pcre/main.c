@@ -4,57 +4,25 @@
 #include <string.h>
 #include <assert.h>
 #include <stdint.h>
-#include <pcre2.h>
+#include "main.h"
 #include "re.h"
 
-#define		GENERAL_BUFSIZE		512
-#define		USE_PCRE2POSIX		1
-#define		USE_INPUT_STDIO		0
-#define		USE_VERBOSE				1
+glb_t my_static_glb;
+glb_t *glb = &my_static_glb;
 
-//FIXME - * at least something (shoud be used + insted)
-#if USE_PCRE2POSIX
- #define		PATTERN_ESCAPE	"%%"
- #define		PATTERN_WORD		"(.*)"
-//"([^[:space:]]*)"
- /* more then one space */
- #define		PATTERN_SPACE		"(([^[:space:]]*\\s[^[:space:]]*){%u})" 
- /* space modifier - no space */
- #define		PATTERN_NOSPACE	"([^[:space:]]*)" 
-//"((\\s|[^[:space:]]+\\s|\\s[^[:space:]]+){%u})"
-//"(([^[:space:]]*\\s){%u})" //working
-//"(([^\\s]+[:space:][^[:space:]]*){%u})"
- #define		PATTERN_GREEDY	"(.*)"
-
-
-#else
- #define		PATTERN_WORD		"(\\S*)"
- #define		PATTERN_SPACE		"((\\S*\\s\\S*){%u})"
- #define		PATTERN_GREEDY	"(.*)"
-#endif
-
-
-/* Alloc/realloc input buffer */
-size_t
-input_read_realloc(char **buf, size_t size)
+/*
+ * Resize a storage for tokens' id and tokens' location. 
+ */
+void
+token_storage_realloc(token_t *tokens, size_t size)
 {
-	size_t new_size;
-	char *new_buf;
-
-	/* New buff alloc */
-	if (size == 0)
-		*buf = NULL;
-		
-	new_size = size + GENERAL_BUFSIZE;
-
-	new_buf = realloc(*buf, new_size);
-	assert(new_buf);
-	*buf = new_buf;
-
-	return new_size;
+	tokens->storage = (uint32_t *) realloc(tokens->storage, (tokens->size + size) * sizeof(uint32_t));
+	assert(tokens->storage);
+	tokens->tcs = (token_cap_seq_t *) realloc(tokens->tcs, (tokens->size + size) * sizeof(token_cap_seq_t));
+	assert(tokens->tcs);
+	
+	tokens->size += size;
 }
-
-
 
 /*
  * Parse input token.
@@ -91,7 +59,6 @@ input_pattern_parser_token(char *start, char *rstring, size_t rstring_len)
 	 * Escaping - if we escape % by %% we need to copy just single % into final regex
 	 * and jump over %% in input string. Therefore 2 is returned although just signle
 	 * character is in rstring buffer.
-	 *
 	 */
 	if (*p == '%') {
 		ret = snprintf(rstring, rstring_len, PATTERN_ESCAPE);
@@ -131,6 +98,17 @@ input_pattern_parser_token(char *start, char *rstring, size_t rstring_len)
 	 */
 	if (*p++ != '}') return -1;
 	
+	
+	/* 
+	 * Store token identifier and its position
+	 */
+	if (glb->tokens.len >= glb->tokens.size)
+		token_storage_realloc(&glb->tokens, TOKEN_RESIZE);
+		
+	glb->tokens.storage[glb->tokens.len] = id;
+	glb->tokens.tcs[glb->tokens.len].start = start;
+	glb->tokens.tcs[glb->tokens.len].len = p - start;
+	glb->tokens.len++;	
 	
 	/* 
 	 * Return proper format of regex in rstring. 
@@ -240,18 +218,39 @@ input_pattern_parser(char *pattern)
 }
 
 
+/* Alloc/realloc input buffer */
+size_t
+input_read_realloc(char **buf, size_t size)
+{
+	size_t new_size;
+	char *new_buf;
+
+	/* New buff alloc */
+	if (size == 0)
+		*buf = NULL;
+		
+	new_size = size + GENERAL_BUFSIZE;
+
+	new_buf = realloc(*buf, new_size);
+	assert(new_buf);
+	*buf = new_buf;
+
+	return new_size;
+}
+
+
+//FIXME - long lines
 char *
 input_read()
 {
 	static char buf[GENERAL_BUFSIZE];
 	size_t len;
-	//size_t idx;
 
 	//FIXME - long line, input check
 	fgets(buf, GENERAL_BUFSIZE, stdin);
 	len = strlen(buf);
+	//assert(buf[len-1] == '\n');
 	buf[len-1]='\0'; // remove nl
-
 
 	if (feof(stdin))
 		return NULL;
@@ -259,6 +258,45 @@ input_read()
 	return buf;
 }
 
+
+void
+debug_print(glb_t *glb)
+{
+	int i;
+	re_posix_t *re_posix;
+	token_t *tokens;
+	char *input_line;
+	char *input_pattern;
+	
+	re_posix = &glb->re_posix;
+	tokens = &glb->tokens;
+	input_line = glb->input_line;
+	input_pattern = glb->input_pattern;
+	
+	printf("Input:   '%s'\nPattern: '%s'\nRegex:   '%s'\n", 
+		input_line, glb->input_pattern, glb->regex);
+	
+	printf("Token captures:\n");
+	for (i = 1; i < re_posix->pmatch_size && re_posix->pmatch[i].rm_so != -1; i++) {
+		
+		printf(" %3d: '%.*s' =~ '%.*s'\n", 
+			tokens->storage[i-1],
+			tokens->tcs[i-1].len,
+			tokens->tcs[i-1].start,
+			re_posix->pmatch[i].rm_eo - re_posix->pmatch[i].rm_so, 
+			&input_line[re_posix->pmatch[i].rm_so]);	
+	}
+	printf("\n");
+}
+
+
+void
+init(glb_t *glb)
+{
+	
+	//alloc
+	memset(glb, 0, sizeof(glb_t));
+}
 
 
 int
@@ -271,6 +309,8 @@ main(int argc, char *argv[])
 	regex_t *preg;
 	int ret;
 	
+	init(glb);
+	
 /* USE STDIO */
 #if USE_INPUT_STDIO
 	if (argc != 2) {
@@ -280,7 +320,7 @@ main(int argc, char *argv[])
 
 	input_pattern = argv[1];
 	regex = input_pattern_parser(input_pattern);
-	preg = re_posix_comp(regex);
+	re_posix_comp(&glb->re_posix, regex);
 
 #if USE_VERBOSE
 	printf("regex: '%s'\n", regex);
@@ -308,19 +348,28 @@ main(int argc, char *argv[])
 	
 	input_pattern = argv[1];
 	input_line = argv[2];
+	glb->input_pattern = input_pattern;
+	glb->input_line = input_line;
+	
 	regex = input_pattern_parser(input_pattern);
-	printf("%s - %s\n", input_line, regex);
+	glb->regex = regex;
+	re_posix_init(&glb->re_posix, glb->tokens.len);
 	
-	//re = re_patter_init(regex);
-	//re_pattern_match(re, input_line);	
+	ret = re_posix_comp(&glb->re_posix, regex);
+	ret = re_posix_exec(&glb->re_posix, input_line);		
 	
-	preg = re_posix_comp(regex);
-	ret = re_posix_exec(preg, input_line);		
 	#if USE_VERBOSE
-		if (ret == 1)
-			printf("%s - YES\n", input_line);
-		else if (ret == 0)
-			printf("%s - NO\n", input_line);
+		if (ret == 1) {
+			printf("Matched: YES\n");
+			debug_print(glb);
+		}
+		else if (ret == 0) {
+			printf("Matched: NO\n");
+		}
+		else {
+			fprintf(stderr, "Matched: error\n");
+		}
+		
 	#else
 		if (ret == 1)
 			printf("%s\n", input_line);
