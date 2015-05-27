@@ -11,9 +11,11 @@ FAIL_COUNTER=0;
 
 # Debug mode - run the program in verbose mode
 if [ "X$1" == "X-d" ]; then
-  DEBUG="1"
+  DEBUG="d"
+elif [ "X$1" == "X-v" ]; then
+  DEBUG="v"
 else
-  DEBUG="0"
+  DEBUG=""
 fi
 
 
@@ -55,6 +57,7 @@ function print_unit_result()
   echo "========================="
 }
 
+
 function test_debug_regex()
 {
   pattern=$1
@@ -66,22 +69,37 @@ function test_debug_regex()
   echo "$input" | ./regex "$pattern"
 }
 
+
+function test_valgrind_regex()
+{
+  pattern=$1
+  input=$2
+  
+  valgrind --show-reachable=yes --leak-check=full echo "$input" | ./regex "$pattern"
+}
+
+
+# Main test for debug mode, unit mode or valgrind mode
 function test_regex()
 {
   match=$1
   pattern=$2
   input=$3
   
-  if [ "$DEBUG" == "0" ]; then
-    test_unit_regex "$match" "$pattern" "$input"
-  else
+  if [ "$DEBUG" == "d" ]; then
     test_debug_regex "$pattern" "$input"
+  elif [ "$DEBUG" == "v" ]; then
+    test_valgrind_regex "$pattern" "$input"
+  else
+    test_unit_regex "$match" "$pattern" "$input"
   fi
 }
 
+
+# Prind summary in case od unit mode
 function print_result()
 {
-  [ "$DEBUG" == "0" ] && print_unit_result
+  [ "$DEBUG" == "" ] && print_unit_result
 }
 
 
