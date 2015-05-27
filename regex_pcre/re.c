@@ -2,6 +2,7 @@
 #include <string.h>
 #include <assert.h>
 #include "re.h"
+//#include "main.h"
 
 #define   GENERAL_BUFFER_SIZE   512
 
@@ -117,56 +118,79 @@ re_pattern_match(pcre2_code *re, char *input)
   return 0;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////
 
-
-
-
-regex_t *
-re_posix_comp(const char *regex)
+/*
+ * Initialize structures
+ */
+int
+re_posix_init(re_posix_t *re_posix, size_t pmatch_size)
 {
-  regex_t *preg;
-  int ret;
-  
-  preg = (regex_t *) malloc(sizeof(regex_t));
-  assert(preg);
-  
-  ret = regcomp(preg, regex, 0);
-  if (ret) {
-    char errbuf[256];
-    regerror(ret, preg, errbuf, 256);    
-    fprintf(stderr, "posix comp error: %s\n", errbuf);
-    exit(1);
+  re_posix->preg = (regex_t *) malloc(sizeof(regex_t));
+  assert(re_posix->preg);
+
+  re_posix->pmatch_size = pmatch_size + 1; /* first match is regex itself */
+  if (pmatch_size > 0) {
+    re_posix->pmatch = (regmatch_t *) malloc(sizeof(regmatch_t));
+    assert(re_posix->pmatch);
   }
-  
-  return preg;
+  else {
+    re_posix->pmatch = NULL;
+  }
 }
 
 
+/*
+ * Clean up
+ */
+void
+re_posix_fini(re_posix_t *re_posix)
+{
+  regfree(re_posix->preg);
+  free(re_posix->pmatch);
+}
+
+
+/*
+ * Compile valid regex to PCRE format.
+ */
 int
-re_posix_exec(regex_t *preg, const char *subject)
+re_posix_comp(re_posix_t *re_posix, const char *regex)
 {
   int ret;
-  size_t nmatch;
-  regmatch_t pmatch[3];
+  char errbuf[GENERAL_BUFFER_SIZE];
+  
+  ret = regcomp(re_posix->preg, regex, 0);
+  if (ret) {
+    assert(
+      regerror(ret, re_posix->preg, errbuf, GENERAL_BUFFER_SIZE) < GENERAL_BUFFER_SIZE
+    );
+    fprintf(stderr, "posix comp error: %s\n", errbuf);
+  }
+  
+  return ret;
+}
+
+
+/*
+ * Execute PCRE 
+ */
+int
+re_posix_exec(re_posix_t *re_posix, const char *subject)
+{
+  char errbuf[GENERAL_BUFFER_SIZE];
+  int ret;
   int i;
   
-  memset(pmatch, 0, sizeof(pmatch));
-  
-  ret = regexec(preg, subject, 3, pmatch, 0);
+  ret = regexec(re_posix->preg, subject, re_posix->pmatch_size, re_posix->pmatch, 0);
   if (ret != 0 && ret != REG_NOMATCH) {
-    char errbuf[256]; //FIXME
-    regerror(ret, preg, errbuf, 256);
+    assert(
+      regerror(ret, re_posix->preg, errbuf, GENERAL_BUFFER_SIZE) < GENERAL_BUFFER_SIZE
+    );
     fprintf(stderr, "%s\n", errbuf);
     return -1;
   }
   
   return (REG_NOMATCH == ret) ? 0 : 1;
-  
-  printf("Match:\n");
-  i=1;
-  while (i < 3 && pmatch[i].rm_so != -1) {
-    printf("\t'%.*s'\n", pmatch[i].rm_eo-pmatch[i].rm_so, &subject[pmatch[i].rm_so]);
-    i++;
-  }
-  
 }
+
