@@ -1,0 +1,5 @@
+# will match single group of expected string .. 'sdf sdf sdf'
+perl -e 'if ($ARGV[0] =~ /^((?:\S*\s\S*){2})$/) { print "$1|$2|$3|\n"; }' "sdf sdf sdf"
+
+# named group
+perl -e 'if ($ARGV[0] =~ /^(?<name>[sdf]*) (?<name2>[sdf]*)$/) { print "... $+{name}|$+{name2}\n"; }' "sdf sdf"
