@@ -5,11 +5,12 @@
 #include <pcre2.h>
 #include <pcre2posix.h>
 
+
 typedef struct 
 {
-  regex_t *preg;        /* compiled regex */
-  regmatch_t *pmatch;   /* storage for results */
-  size_t pmatch_size;   /* size of above storage */
+  regex_t *preg;        /* Compiled regex */
+  regmatch_t *pmatch;   /* Storage for results */
+  size_t pmatch_size;   /* Size of above storage */
 } re_posix_t;
 
 

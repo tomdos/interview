@@ -4,11 +4,10 @@
 #include <stdint.h>
 #include "re.h"
 
-
-#define		GENERAL_BUFSIZE		512
-#define		USE_PCRE2POSIX		1
-#define		USE_INPUT_STDIO		0
-#define		USE_VERBOSE				1
+#define		GENERAL_BUFSIZE		512   /* General buffer size */
+#define		USE_PCRE2POSIX		1     /* Use pcre2posix - posix PCRE wrapper */
+#define		USE_INPUT_STDIO		1     /* Read input from stdio (or use args if 0) */
+#define		USE_VERBOSE				1     /* Verbose (debug) output */
 
 //FIXME - * at least something (shoud be used + insted)
 #if USE_PCRE2POSIX
@@ -30,34 +29,37 @@
  #define		PATTERN_GREEDY	"(.*)"
 #endif
 
-
+/* Default realloc size for token storage and tcs. */
 #define			TOKEN_RESIZE    10
 
+
+/* Token reference - keeps a pointer to token in input pattern and its length */
 typedef struct {
   const char *start;
   size_t len;
 } token_cap_seq_t;
 
+
+/* It keeps all tokens id and references. */
 typedef struct
 {
-  uint32_t *storage;
-  token_cap_seq_t *tcs;
-  size_t len;
-  size_t size;
+  uint32_t *storage;      /* Storage for token id */
+  token_cap_seq_t *tcs;   /* All references */
+  size_t len;             /* Current usage */
+  size_t size;            /* Size of buffers */
 } token_t;
 
 
+/* Main structure */
 typedef struct
 {
-  char *input_line;
-  char *input_pattern;
-  char *regex;
-  size_t input_line_size;
-  size_t regex_size;
-  //uint8_t token_id_storage[TOKEN_STORAGE_SIZE];
-  //uint8_t token_id_storage_len;
-  token_t tokens;
-  re_posix_t re_posix;
+  const char *input_line;     /* Input text from stdio */
+  const char *input_pattern;  /* Input pattern */
+  char *regex;                /* Valid regex generated from input_pattern */
+  size_t input_line_size;     /* Buffer size */
+  size_t regex_size;          /* Buffer size */
+  token_t tokens;             /* Token structure - all info about input tokens */
+  re_posix_t re_posix;        /* Structure used by PCRE wrappers */
 } glb_t;
 
 

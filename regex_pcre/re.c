@@ -118,7 +118,11 @@ re_pattern_match(pcre2_code *re, char *input)
   return 0;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////
 
+/*
+ * Initialize structures
+ */
 int
 re_posix_init(re_posix_t *re_posix, size_t pmatch_size)
 {
@@ -136,6 +140,9 @@ re_posix_init(re_posix_t *re_posix, size_t pmatch_size)
 }
 
 
+/*
+ * Clean up
+ */
 void
 re_posix_fini(re_posix_t *re_posix)
 {
@@ -144,6 +151,9 @@ re_posix_fini(re_posix_t *re_posix)
 }
 
 
+/*
+ * Compile valid regex to PCRE format.
+ */
 int
 re_posix_comp(re_posix_t *re_posix, const char *regex)
 {
@@ -162,6 +172,9 @@ re_posix_comp(re_posix_t *re_posix, const char *regex)
 }
 
 
+/*
+ * Execute PCRE 
+ */
 int
 re_posix_exec(re_posix_t *re_posix, const char *subject)
 {
@@ -180,6 +193,4 @@ re_posix_exec(re_posix_t *re_posix, const char *subject)
   
   return (REG_NOMATCH == ret) ? 0 : 1;
 }
-
-
 

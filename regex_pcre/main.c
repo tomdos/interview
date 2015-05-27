@@ -237,7 +237,10 @@ input_read_realloc(char **buf, size_t size)
 }
 
 
-//FIXME - long lines
+/*
+ * Read stdio.
+ */
+//FIXME !!!!!!!!!!!!!!!!! - long lines
 char *
 input_read()
 {
@@ -257,14 +260,17 @@ input_read()
 }
 
 
+/*
+ * Debug print - print input, pattern, regex, token id and etc..
+ */
 void
 debug_print(glb_t *glb)
 {
 	int i;
 	re_posix_t *re_posix;
 	token_t *tokens;
-	char *input_line;
-	char *input_pattern;
+	const char *input_line;
+	const char *input_pattern;
 	
 	re_posix = &glb->re_posix;
 	tokens = &glb->tokens;
@@ -287,94 +293,95 @@ debug_print(glb_t *glb)
 }
 
 
+/*
+ * Print result.
+ * Print matching input (according to the assignment) or debug info in case of USE_VERBOSE.
+ */
+void
+print_result(glb_t *glb, int matched)
+{
+#if USE_VERBOSE
+	if (matched == 1) {
+		printf("Matched: YES\n");
+		debug_print(glb);
+	}
+	else if (matched == 0) {
+		printf("Matched: NO\n");
+	}
+	else {
+		fprintf(stderr, "Matched: error\n");
+	}		
+#else
+	if (matched == 1)
+		printf("%s\n", glb->input_line);
+#endif
+}
+
+
+/*
+ * Initialize main structure.
+ */
 void
 init(glb_t *glb)
 {
-	//alloc
 	memset(glb, 0, sizeof(glb_t));
 }
 
 
+/*
+ * Clean up
+ */
 void
 fini(glb_t *glb)
 {
-	
+	free(glb->regex);
+	free(glb->tokens.storage);
+	free(glb->tokens.tcs);
+	re_pattern_fini(glb->re_posix);
 }
 
 
 int
 main(int argc, char *argv[])
 {
-	//pcre2_code *re;
 	int ret;
 	glb_t glb;
 	
 	init(&glb);
-	
-/* USE STDIO */
+
+/* USE STDIO - input can be passed via stdio or by args. */
 #if USE_INPUT_STDIO
 	if (argc != 2) {
 		fprintf(stderr, "Usage: regex <pattern>\n");
 		exit(1);
 	}
-
-	input_pattern = argv[1];
-	regex = input_pattern_parser(input_pattern);
-	re_posix_comp(&glb.re_posix, regex);
-
-#if USE_VERBOSE
-	printf("regex: '%s'\n", regex);
-#endif
-	
-	while ((input_line = input_read())) {
-		ret = re_posix_exec(preg, input_line);
- #if USE_VERBOSE
-		if (ret == 1)
-			printf("%s - YES\n", input_line);
-		else if (ret == 0)
-			printf("%s - NO\n", input_line);
- #else
-		if (ret == 1)
-			printf("%s\n", input_line);
- #endif
-	}
-	
-/* USE ARGS */
 #else
 	if (argc != 3) {
 		fprintf(stderr, "Usage: regex <pattern> <string>\n");
 		exit(1);
 	}
-	
+#endif
+		
 	glb.input_pattern = argv[1];
+#if !USE_INPUT_STDIO	
 	glb.input_line = argv[2];
-	
+#endif
 	glb.regex = input_pattern_parser(glb.input_pattern, &glb.tokens);
 	re_posix_init(&glb.re_posix, glb.tokens.len);
-	
 	ret = re_posix_comp(&glb.re_posix, glb.regex);
-	ret = re_posix_exec(&glb.re_posix, glb.input_line);		
 	
-	#if USE_VERBOSE
-		if (ret == 1) {
-			printf("Matched: YES\n");
-			debug_print(&glb);
-		}
-		else if (ret == 0) {
-			printf("Matched: NO\n");
-		}
-		else {
-			fprintf(stderr, "Matched: error\n");
-		}
-		
-	#else
-		if (ret == 1)
-			printf("%s\n", glb.input_line);
-	#endif
-		
-#endif	
 
+#if USE_INPUT_STDIO	
+	while ((glb.input_line = input_read())) {
+		ret = re_posix_exec(&glb.re_posix, glb.input_line);	
+		print_result(&glb, ret);
+	}
+#else
+	ret = re_posix_exec(&glb.re_posix, glb.input_line);	
+	print_result(&glb, ret);
+#endif
+
+		
 	fini(&glb);
-	
 	return 0;
 }
