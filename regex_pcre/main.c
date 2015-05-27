@@ -1,4 +1,3 @@
-#define PCRE2_CODE_UNIT_WIDTH 8
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,8 +6,6 @@
 #include "main.h"
 #include "re.h"
 
-glb_t my_static_glb;
-glb_t *glb = &my_static_glb;
 
 /*
  * Resize a storage for tokens' id and tokens' location. 
@@ -24,6 +21,7 @@ token_storage_realloc(token_t *tokens, size_t size)
 	tokens->size += size;
 }
 
+
 /*
  * Parse input token.
  * Use proper regex based on a token stored in start arg.
@@ -38,7 +36,7 @@ token_storage_realloc(token_t *tokens, size_t size)
  * 
  */
 int 
-input_pattern_parser_token(char *start, char *rstring, size_t rstring_len)
+input_pattern_parser_token(const char *start, char *rstring, size_t rstring_len, token_t *tokens)
 {
 	uint8_t greedy;
 	uint8_t whitespace;
@@ -102,13 +100,13 @@ input_pattern_parser_token(char *start, char *rstring, size_t rstring_len)
 	/* 
 	 * Store token identifier and its position
 	 */
-	if (glb->tokens.len >= glb->tokens.size)
-		token_storage_realloc(&glb->tokens, TOKEN_RESIZE);
+	if (tokens->len >= tokens->size)
+		token_storage_realloc(tokens, TOKEN_RESIZE);
 		
-	glb->tokens.storage[glb->tokens.len] = id;
-	glb->tokens.tcs[glb->tokens.len].start = start;
-	glb->tokens.tcs[glb->tokens.len].len = p - start;
-	glb->tokens.len++;	
+	tokens->storage[tokens->len] = id;
+	tokens->tcs[tokens->len].start = start;
+	tokens->tcs[tokens->len].len = p - start;
+	tokens->len++;	
 	
 	/* 
 	 * Return proper format of regex in rstring. 
@@ -167,7 +165,7 @@ memory_concat(char *dest, size_t dest_pos, size_t *dest_size, const char *src, s
  * Return value muset be freed!
  */
 char *
-input_pattern_parser(char *pattern)
+input_pattern_parser(const char *pattern, token_t *tokens)
 {
 	char *regex;
 	size_t regex_size;
@@ -175,7 +173,7 @@ input_pattern_parser(char *pattern)
 	size_t len;
 	size_t i, j;
 	int ret;
-	
+		
 	//FIXME - realloc the buffer 
 	regex_size = GENERAL_BUFSIZE;
 	regex = (char *) malloc(sizeof(char) * regex_size);
@@ -190,7 +188,7 @@ input_pattern_parser(char *pattern)
 	while (pattern[i]) {
 		//FIXME - escape
 		if (pattern[i] == '%') {
-			ret = input_pattern_parser_token(&pattern[i], regex_token, GENERAL_BUFSIZE);
+			ret = input_pattern_parser_token(&pattern[i], regex_token, GENERAL_BUFSIZE, tokens);
 			if (ret == -1)
 				return NULL;
 				
@@ -286,30 +284,32 @@ debug_print(glb_t *glb)
 			re_posix->pmatch[i].rm_eo - re_posix->pmatch[i].rm_so, 
 			&input_line[re_posix->pmatch[i].rm_so]);	
 	}
-	printf("\n");
 }
 
 
 void
 init(glb_t *glb)
 {
-	
 	//alloc
 	memset(glb, 0, sizeof(glb_t));
+}
+
+
+void
+fini(glb_t *glb)
+{
+	
 }
 
 
 int
 main(int argc, char *argv[])
 {
-	char *input_pattern;
-	char *input_line;
-	char *regex;
-	pcre2_code *re;
-	regex_t *preg;
+	//pcre2_code *re;
 	int ret;
+	glb_t glb;
 	
-	init(glb);
+	init(&glb);
 	
 /* USE STDIO */
 #if USE_INPUT_STDIO
@@ -320,7 +320,7 @@ main(int argc, char *argv[])
 
 	input_pattern = argv[1];
 	regex = input_pattern_parser(input_pattern);
-	re_posix_comp(&glb->re_posix, regex);
+	re_posix_comp(&glb.re_posix, regex);
 
 #if USE_VERBOSE
 	printf("regex: '%s'\n", regex);
@@ -346,22 +346,19 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 	
-	input_pattern = argv[1];
-	input_line = argv[2];
-	glb->input_pattern = input_pattern;
-	glb->input_line = input_line;
+	glb.input_pattern = argv[1];
+	glb.input_line = argv[2];
 	
-	regex = input_pattern_parser(input_pattern);
-	glb->regex = regex;
-	re_posix_init(&glb->re_posix, glb->tokens.len);
+	glb.regex = input_pattern_parser(glb.input_pattern, &glb.tokens);
+	re_posix_init(&glb.re_posix, glb.tokens.len);
 	
-	ret = re_posix_comp(&glb->re_posix, regex);
-	ret = re_posix_exec(&glb->re_posix, input_line);		
+	ret = re_posix_comp(&glb.re_posix, glb.regex);
+	ret = re_posix_exec(&glb.re_posix, glb.input_line);		
 	
 	#if USE_VERBOSE
 		if (ret == 1) {
 			printf("Matched: YES\n");
-			debug_print(glb);
+			debug_print(&glb);
 		}
 		else if (ret == 0) {
 			printf("Matched: NO\n");
@@ -372,10 +369,12 @@ main(int argc, char *argv[])
 		
 	#else
 		if (ret == 1)
-			printf("%s\n", input_line);
+			printf("%s\n", glb.input_line);
 	#endif
 		
 #endif	
+
+	fini(&glb);
 	
 	return 0;
 }

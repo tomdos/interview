@@ -2,7 +2,6 @@
 #define __MAIN_H
 
 #include <stdint.h>
-#include <pcre2.h>
 #include "re.h"
 
 
@@ -35,7 +34,7 @@
 #define			TOKEN_RESIZE    10
 
 typedef struct {
-  char *start;
+  const char *start;
   size_t len;
 } token_cap_seq_t;
 
