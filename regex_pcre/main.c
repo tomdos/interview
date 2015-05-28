@@ -188,6 +188,7 @@ input_pattern_parser(const char *pattern, token_t *tokens)
 			ret = input_pattern_parser_token(&pattern[i], regex_token, GENERAL_BUFSIZE, tokens);
 			if (ret == -1) {
 				fprintf(stderr, "Input pattern - bad syntax - '%s'\n", pattern);
+				free(regex);
 				return NULL;
 			}
 				
