@@ -1,15 +1,23 @@
 #!/bin/bash
 
-# FIXME
-#EXEC=regex
-#if [ ! -x "$EXEC" ]; then
-#  echo "Unable to find executable file."
-#  exit 1
-#fi
+
+if [ ! -x "./regex" ]; then
+  echo "Unable to find executable file."
+  exit 1
+fi
+
+# Help
+if [ "X$1" == "X-h" ]; then
+  echo "regex_test.sh [-h|-v|-d]"
+  echo " -h show this help"
+  echo " -v use valgrind"
+  echo " -d use debug - use USE_VERBOSE 1 in main.h"
+  exit 0
+fi
 
 FAIL_COUNTER=0;
 
-# Debug mode - run the program in verbose mode
+# Input parameter - debug, valgrind, normal mode
 if [ "X$1" == "X-d" ]; then
   DEBUG="d"
 elif [ "X$1" == "X-v" ]; then
@@ -18,7 +26,18 @@ else
   DEBUG=""
 fi
 
-
+# Run the program with:
+#  input - input string (subject)
+#  pattern - pattern
+#  match - expected result
+#
+# Output looks like:
+#  C1  C2  'C3' =~ 'C4'
+# where:
+#  C1 - O/F which means wheter test is OK of FAIL
+#  C2 - T/F which means True or False in terms of matching pattern in input
+#  C3 - input
+#  C4 - pattern
 function test_unit_regex()
 {
   match=$1    # expectation - 1-matched, 0-not
@@ -46,6 +65,7 @@ function test_unit_regex()
 }
 
 
+# Info whether test succeeded or not
 function print_unit_result()
 {
   echo "========================="
@@ -58,6 +78,8 @@ function print_unit_result()
 }
 
 
+# Run the program in debug mode.
+# The program should be compiled with option USE_VERBOSE 1 in main.h
 function test_debug_regex()
 {
   pattern=$1
@@ -70,6 +92,7 @@ function test_debug_regex()
 }
 
 
+# Valgrind test
 function test_valgrind_regex()
 {
   pattern=$1
@@ -103,7 +126,8 @@ function print_result()
 }
 
 
-###### Examples from assignment 
+###### Examples from description
+echo "Examples from description: "
 # General pattern
 test_regex 1 'foo %{0} is a %{1}' "foo blah is a bar"
 test_regex 1 'foo %{0} is a %{1}' "foo blah is a very big boat"
@@ -160,6 +184,11 @@ test_regex 1 'AXBXC%{0G}%{1}' "AXBXCX"
 test_regex 1 '%{0G}%{1S5}%{2}' "AX BX CX DX EX FX"
 test_regex 1 '%{0G}%{1S0}%{2}' "AX BX CX DX EX FX"
 test_regex 0 '%{0G}%{1S6}%{2}' "AX BX CX DX EX FX"
+test_regex 1 '%{0}%{1G} CX%{2S2}%{3S1} %{4S0}%{3}' "AX BX CX DX EX FX GX HX IX"
+
+echo "My tests - pattern containing regex: "
+test_regex 1 "(.*)%{1} %{1}$" "(.*) A B C$"
+test_regex 1 "(.*){}%{1}$^%{2}$" "(.*){}%.*(.*)$^.(.){2}$"
 
 
 print_result
