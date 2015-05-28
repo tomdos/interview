@@ -5,19 +5,38 @@
 #include "re.h"
 
 #define		GENERAL_BUFSIZE		512   /* General buffer size */
-#define		USE_INPUT_STDIO		0     /* Read input from stdio (or use args if 0) */
-#define		USE_VERBOSE				1     /* Verbose (debug) output */
+#define		USE_INPUT_STDIO		1     /* Read input from stdio (or use args if 0) */
+#define		USE_VERBOSE				0     /* Verbose (debug) output */
 
 
-#define		PATTERN_ESCAPE	"%%"
+/* 
+ * Escape sequeces for reqular text input. It may happened that input pattern 
+ * contains real regual expression. That will lead to unexpected result. Therefore 
+ * whole input pattern needs to be escaped.
+ *
+ * Example 
+ * Pattern input: "(.*)%{1}$"
+ * Parsed regex: '^\Q(.*)\E(.*?)\Q$\E$'
+ * Will match: '(.*) A B C$'
+ */
+#define   PATTERN_ESCAPE_S      "\\Q"  
+#define   PATTERN_ESCAPE_E      "\\E"
+
+/* Begin anchor and end anchor */
+#define   PATTERN_BEGIN         "^"PATTERN_ESCAPE_S
+#define   PATTERN_BEGIN_LEN     3
+#define   PATTERN_END           PATTERN_ESCAPE_E"$"
+#define   PATTERN_END_LEN       3
+/* */
+#define		PATTERN_ESCAPE_TOKEN	"%%"
 /* Lazy quantifier */
-#define		PATTERN_WORD		"(.*?)" 
+#define		PATTERN_WORD		      PATTERN_ESCAPE_E"(.*?)"PATTERN_ESCAPE_S 
 /* more then one space */
-#define		PATTERN_SPACE		"(([^[:space:]]*\\s[^[:space:]]*){%u})" 
+#define		PATTERN_SPACE		      PATTERN_ESCAPE_E"((?:[^[:space:]]*\\s[^[:space:]]*){%u})"PATTERN_ESCAPE_S 
 /* space modifier - no space */
-#define		PATTERN_NOSPACE	"([^[:space:]]*)" 
+#define		PATTERN_NOSPACE	      PATTERN_ESCAPE_E"([^[:space:]]*)"PATTERN_ESCAPE_S 
 /* Greedy */
-#define		PATTERN_GREEDY	"(.*)"
+#define		PATTERN_GREEDY	      PATTERN_ESCAPE_E"(.*)"PATTERN_ESCAPE_S
 
 /* Default realloc size for token storage and tcs. */
 #define			TOKEN_RESIZE    10

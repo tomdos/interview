@@ -17,7 +17,6 @@ token_storage_realloc(token_t *tokens, size_t size)
 	assert(tokens->storage);
 	tokens->tcs = (token_cap_seq_t *) realloc(tokens->tcs, (tokens->size + size) * sizeof(token_cap_seq_t));
 	assert(tokens->tcs);
-	
 	tokens->size += size;
 }
 
@@ -53,13 +52,14 @@ input_pattern_parser_token(const char *start, char *rstring, size_t rstring_len,
 	 * Begin 
 	 */
 	if (*p++ != '%') return -1;
+	
 	/* 
 	 * Escaping - if we escape % by %% we need to copy just single % into final regex
 	 * and jump over %% in input string. Therefore 2 is returned although just signle
 	 * character is in rstring buffer.
 	 */
 	if (*p == '%') {
-		ret = snprintf(rstring, rstring_len, PATTERN_ESCAPE);
+		ret = snprintf(rstring, rstring_len, PATTERN_ESCAPE_TOKEN);
 		assert(ret > 0 && ret < rstring_len);
 		return 2;
 	}
@@ -96,7 +96,6 @@ input_pattern_parser_token(const char *start, char *rstring, size_t rstring_len,
 	 */
 	if (*p++ != '}') return -1;
 	
-	
 	/* 
 	 * Store token identifier and its position
 	 */
@@ -127,7 +126,7 @@ input_pattern_parser_token(const char *start, char *rstring, size_t rstring_len,
 		assert(ret > 0 && ret < rstring_len);
 	}
 	
-	return p - start; //return token len
+	return p - start; /* return token len */
 }
 
 
@@ -174,19 +173,17 @@ input_pattern_parser(const char *pattern, token_t *tokens)
 	size_t i, j;
 	int ret;
 		
-	//FIXME - realloc the buffer 
 	regex_size = GENERAL_BUFSIZE;
 	regex = (char *) malloc(sizeof(char) * regex_size);
 	assert(regex);
 	
-	//FIXME - check buffer len
 	i = 0;
 	j = 0;
-	//regex[j++] = '^';
-	regex = memory_concat(regex, j, &regex_size, "^", 1); 
-	j++;
+	/* Begin of pattern */
+	regex = memory_concat(regex, j, &regex_size, PATTERN_BEGIN, PATTERN_BEGIN_LEN); 
+	j += PATTERN_BEGIN_LEN;
 	while (pattern[i]) {
-		//FIXME - escape
+		/* Token or escaped %% */
 		if (pattern[i] == '%') {
 			ret = input_pattern_parser_token(&pattern[i], regex_token, GENERAL_BUFSIZE, tokens);
 			if (ret == -1)
@@ -194,22 +191,19 @@ input_pattern_parser(const char *pattern, token_t *tokens)
 				
 			i += ret;
 			len = strlen(regex_token);
-			//strcat(&regex[j], regex_token); //FIXME
 			regex = memory_concat(regex, j, &regex_size, regex_token, len);
 			j += len;
 		}
+		/* Any other text */
 		else {
-			//regex[j] = pattern[i];
 			regex = memory_concat(regex, j, &regex_size, &pattern[i], 1);
 			i++;
 			j++;
 		}
 	}
-	//regex[j] = '$';
-	//FIXME null??
-	
-	regex = memory_concat(regex, j, &regex_size, "$", 1);
-	j++;
+	/* End of pattern */
+	regex = memory_concat(regex, j, &regex_size, PATTERN_END, PATTERN_END_LEN);
+	j += PATTERN_END_LEN;
 	regex = memory_concat(regex, j, &regex_size, "\0", 1);
 	
 	return regex;
