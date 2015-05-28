@@ -186,8 +186,10 @@ input_pattern_parser(const char *pattern, token_t *tokens)
 		/* Token or escaped %% */
 		if (pattern[i] == '%') {
 			ret = input_pattern_parser_token(&pattern[i], regex_token, GENERAL_BUFSIZE, tokens);
-			if (ret == -1)
+			if (ret == -1) {
+				fprintf(stderr, "Input pattern - bad syntax - '%s'\n", pattern);
 				return NULL;
+			}
 				
 			i += ret;
 			len = strlen(regex_token);
@@ -233,24 +235,42 @@ input_read_realloc(char **buf, size_t size)
 
 /*
  * Read stdio.
+ * Return whole input line - if necessary realloc input buffer.
  */
-//FIXME !!!!!!!!!!!!!!!!! - long lines
-char *
-input_read()
+int
+input_read(char **rstring, size_t *size)
 {
-	static char buf[GENERAL_BUFSIZE];
 	size_t len;
+	size_t idx;
+	char *buf;
 
-	//FIXME - long line, input check
-	fgets(buf, GENERAL_BUFSIZE, stdin);
-	len = strlen(buf);
-	//assert(buf[len-1] == '\n');
-	buf[len-1]='\0'; // remove nl
+	assert(*size >= 1); 
+	
+	idx = 0;
+	buf = *rstring;
+	
+	while (1) {
+		/* Concat single line into one buffer. */
+		fgets(&buf[idx], *size - idx, stdin);
+		len = strlen(buf);
+		
+		if (feof(stdin))
+			return 0;
+		
+		/* If the last character is not '\n' then resize the buffer and continue */
+		if (buf[len-1] == '\n') {
+			buf[len-1] = '\0'; /* remove new line */
+			break;
+		}
+		else {
+			*size = input_read_realloc(&buf, *size);
+			idx = len;
+		}
+	}
+	
+	*rstring = buf;
 
-	if (feof(stdin))
-		return NULL;
-
-	return buf;
+	return 1;
 }
 
 
@@ -301,14 +321,15 @@ print_result(glb_t *glb, int matched)
 	}
 	else if (matched == 0) {
 		printf("Matched: NO\n");
-	}
-	else {
-		fprintf(stderr, "Matched: error\n");
-	}		
+	}	
 #else
 	if (matched == 1)
 		printf("%s\n", glb->input_line);
 #endif
+
+	if (matched == -1) {
+		fprintf(stderr, "Matched: error\n");
+	}	
 }
 
 
@@ -319,6 +340,10 @@ void
 init(glb_t *glb)
 {
 	memset(glb, 0, sizeof(glb_t));
+	
+#if USE_INPUT_STDIO
+	glb->input_line_size = input_read_realloc(&glb->input_line, 0);
+#endif
 }
 
 
@@ -331,7 +356,11 @@ fini(glb_t *glb)
 	free(glb->regex);
 	free(glb->tokens.storage);
 	free(glb->tokens.tcs);
-	re_posix_fini(&glb->re_posix);
+#if USE_INPUT_STDIO
+	free(glb->input_line);
+#endif	
+	if (glb->re_posix.preg)
+		re_posix_fini(&glb->re_posix);
 }
 
 
@@ -354,13 +383,16 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Usage: regex <pattern> <string>\n");
 		exit(1);
 	}
-#endif
-		
-	glb.input_pattern = argv[1];
-#if !USE_INPUT_STDIO	
+	
 	glb.input_line = argv[2];
 #endif
+
+	glb.input_pattern = argv[1];
 	glb.regex = input_pattern_parser(glb.input_pattern, &glb.tokens);
+	if (glb.regex == NULL) {
+		fini(&glb);
+		return 1;
+	}
 	re_posix_init(&glb.re_posix, glb.tokens.len);
 	ret = re_posix_comp(&glb.re_posix, glb.regex);
 	if (ret) {
@@ -370,7 +402,7 @@ main(int argc, char *argv[])
 	
 
 #if USE_INPUT_STDIO	
-	while ((glb.input_line = input_read())) {
+	while (input_read(&glb.input_line, &glb.input_line_size)) {
 		ret = re_posix_exec(&glb.re_posix, glb.input_line);	
 		print_result(&glb, ret);
 	}

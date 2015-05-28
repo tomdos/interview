@@ -62,8 +62,8 @@ typedef struct
 /* Main structure */
 typedef struct
 {
-  const char *input_line;     /* Input text from stdio */
-  const char *input_pattern;  /* Input pattern */
+  char *input_line;           /* Input text from stdio */
+  char *input_pattern;        /* Input pattern */
   char *regex;                /* Valid regex generated from input_pattern */
   size_t input_line_size;     /* Buffer size */
   size_t regex_size;          /* Buffer size */
