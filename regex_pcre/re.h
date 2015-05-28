@@ -17,7 +17,7 @@ typedef struct
 pcre2_code * re_patter_init(char *regex);
 int re_pattern_match(pcre2_code *re, char *input);
 
-int re_posix_init(re_posix_t *re_posix, size_t pmatch_size);
+void re_posix_init(re_posix_t *re_posix, size_t pmatch_size);
 void re_posix_fini(re_posix_t *re_posix);
 int re_posix_comp(re_posix_t *re_posix, const char *regex);
 int re_posix_exec(re_posix_t *re_posix, const char *subject);

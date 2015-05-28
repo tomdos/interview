@@ -337,7 +337,7 @@ fini(glb_t *glb)
 	free(glb->regex);
 	free(glb->tokens.storage);
 	free(glb->tokens.tcs);
-	re_pattern_fini(glb->re_posix);
+	re_posix_fini(&glb->re_posix);
 }
 
 
@@ -369,6 +369,10 @@ main(int argc, char *argv[])
 	glb.regex = input_pattern_parser(glb.input_pattern, &glb.tokens);
 	re_posix_init(&glb.re_posix, glb.tokens.len);
 	ret = re_posix_comp(&glb.re_posix, glb.regex);
+	if (ret) {
+		fini(&glb);
+		return 1;
+	}
 	
 
 #if USE_INPUT_STDIO	

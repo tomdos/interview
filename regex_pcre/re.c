@@ -2,7 +2,7 @@
 #include <string.h>
 #include <assert.h>
 #include "re.h"
-//#include "main.h"
+#include "main.h"
 
 #define   GENERAL_BUFFER_SIZE   512
 
@@ -123,7 +123,7 @@ re_pattern_match(pcre2_code *re, char *input)
 /*
  * Initialize structures
  */
-int
+void
 re_posix_init(re_posix_t *re_posix, size_t pmatch_size)
 {
   re_posix->preg = (regex_t *) malloc(sizeof(regex_t));
@@ -131,7 +131,7 @@ re_posix_init(re_posix_t *re_posix, size_t pmatch_size)
 
   re_posix->pmatch_size = pmatch_size + 1; /* first match is regex itself */
   if (pmatch_size > 0) {
-    re_posix->pmatch = (regmatch_t *) malloc(sizeof(regmatch_t));
+    re_posix->pmatch = (regmatch_t *) malloc(sizeof(regmatch_t) * re_posix->pmatch_size);
     assert(re_posix->pmatch);
   }
   else {
@@ -147,6 +147,7 @@ void
 re_posix_fini(re_posix_t *re_posix)
 {
   regfree(re_posix->preg);
+  free(re_posix->preg);
   free(re_posix->pmatch);
 }
 

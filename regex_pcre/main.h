@@ -5,29 +5,19 @@
 #include "re.h"
 
 #define		GENERAL_BUFSIZE		512   /* General buffer size */
-#define		USE_PCRE2POSIX		1     /* Use pcre2posix - posix PCRE wrapper */
-#define		USE_INPUT_STDIO		1     /* Read input from stdio (or use args if 0) */
+#define		USE_INPUT_STDIO		0     /* Read input from stdio (or use args if 0) */
 #define		USE_VERBOSE				1     /* Verbose (debug) output */
 
-//FIXME - * at least something (shoud be used + insted)
-#if USE_PCRE2POSIX
- #define		PATTERN_ESCAPE	"%%"
- #define		PATTERN_WORD		"(.*)"
-//"([^[:space:]]*)"
- /* more then one space */
- #define		PATTERN_SPACE		"(([^[:space:]]*\\s[^[:space:]]*){%u})" 
- /* space modifier - no space */
- #define		PATTERN_NOSPACE	"([^[:space:]]*)" 
-//"((\\s|[^[:space:]]+\\s|\\s[^[:space:]]+){%u})"
-//"(([^[:space:]]*\\s){%u})" //working
-//"(([^\\s]+[:space:][^[:space:]]*){%u})"
- #define		PATTERN_GREEDY	"(.*)"
 
-#else
- #define		PATTERN_WORD		"(\\S*)"
- #define		PATTERN_SPACE		"((\\S*\\s\\S*){%u})"
- #define		PATTERN_GREEDY	"(.*)"
-#endif
+#define		PATTERN_ESCAPE	"%%"
+/* Lazy quantifier */
+#define		PATTERN_WORD		"(.*?)" 
+/* more then one space */
+#define		PATTERN_SPACE		"(([^[:space:]]*\\s[^[:space:]]*){%u})" 
+/* space modifier - no space */
+#define		PATTERN_NOSPACE	"([^[:space:]]*)" 
+/* Greedy */
+#define		PATTERN_GREEDY	"(.*)"
 
 /* Default realloc size for token storage and tcs. */
 #define			TOKEN_RESIZE    10
