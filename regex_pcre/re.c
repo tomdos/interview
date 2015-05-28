@@ -65,7 +65,6 @@ re_posix_exec(re_posix_t *re_posix, const char *subject)
 {
   char errbuf[GENERAL_BUFSIZE];
   int ret;
-  int i;
   
   ret = regexec(re_posix->preg, subject, re_posix->pmatch_size, re_posix->pmatch, 0);
   if (ret != 0 && ret != REG_NOMATCH) {

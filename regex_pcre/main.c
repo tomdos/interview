@@ -70,7 +70,7 @@ input_pattern_parser_token(const char *start, char *rstring, size_t rstring_len,
 	 */
 	ret = sscanf(p, "%u%n", &id, &len); 
 	if (ret != 1) return -1;
-	p += len; // jump behind processed number
+	p += len; /* jump behind processed number */
 	
 	/* 
 	 * Whitespace 
@@ -78,7 +78,7 @@ input_pattern_parser_token(const char *start, char *rstring, size_t rstring_len,
 	if (*p == 'S') { 
 		whitespace = 1;
 		p++;
-		ret = sscanf(p, "%u%n", &whitespace_num, &len); // identifier
+		ret = sscanf(p, "%u%n", &whitespace_num, &len);
 		if (ret != 1) return -1;
 		p += len;
 	}
@@ -284,12 +284,10 @@ debug_print(glb_t *glb)
 	re_posix_t *re_posix;
 	token_t *tokens;
 	const char *input_line;
-	const char *input_pattern;
 	
 	re_posix = &glb->re_posix;
 	tokens = &glb->tokens;
 	input_line = glb->input_line;
-	input_pattern = glb->input_pattern;
 	
 	printf("Input:   '%s'\nPattern: '%s'\nRegex:   '%s'\n", 
 		input_line, glb->input_pattern, glb->regex);
@@ -299,7 +297,7 @@ debug_print(glb_t *glb)
 		
 		printf(" %3d: '%.*s' =~ '%.*s'\n", 
 			tokens->storage[i-1],
-			tokens->tcs[i-1].len,
+			(int) tokens->tcs[i-1].len,
 			tokens->tcs[i-1].start,
 			re_posix->pmatch[i].rm_eo - re_posix->pmatch[i].rm_so, 
 			&input_line[re_posix->pmatch[i].rm_so]);	
