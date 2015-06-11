@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# Tested with a Python 2.7.6
+
 import os
 import sys
 import re
@@ -150,7 +152,9 @@ def main(argv):
     logStat = ApacheLogStat();
 
     try:
-        listDir = os.listdir(argv[0]) # FIXME - use glob?
+        # I don't expect any subdirectory or other files (that's how I
+        # understdood requirements section)
+        listDir = os.listdir(argv[0])
         for filename in listDir:
             logStat.addFile(os.path.join(argv[0], filename))
     except OSError, e:
