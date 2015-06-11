@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-# Tested with a Python 2.7.6
+# Environment: Python 2.7.6
+# Time spent: about 3 hours, less then 4.
 
 import os
 import sys
