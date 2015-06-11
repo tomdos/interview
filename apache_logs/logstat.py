@@ -3,37 +3,42 @@
 import os
 import sys
 import re
-
 from urlparse import urlparse
 
-SCRIPT_NAME="logstat.py"
-ONSITE="example.com"
-GIGA=1000000000
+SCRIPT_NAME = "logstat.py"
+ONSITE = "example.com"
+GIGA = 1000000000
 
 class ApacheLogStat:
     def __init__(self):
         self.clean()
 
+
     def clean(self):
-        '''Clean all. '''
+        '''Clean all previous records. '''
         self.totalRequests = 0
         self.onSiteRequests = 0
         self.customerStat = {}
         self.urlStat = {}
 
+
     def _addStatItem(self, customer, path, status, size, onSite):
-
+        ''' Save parsed values of single line. '''
+        # customers
         if self.customerStat.has_key(customer):
-            self.customerStat[customer] += size
+            self.customerStat[customer] += int(size)
         else:
-            self.customerStat[customer] = size
+            self.customerStat[customer] = int(size)
 
+        # urls - keep stat only for 2xx responses
+        s = int(status)
+        if s >= 200 and s < 300:
+            if self.urlStat.has_key(path):
+                self.urlStat[path] += 1
+            else:
+                self.urlStat[path] = 1
 
-        if self.urlStat.has_key(path):
-            self.urlStat[path] += 1
-        else:
-            self.urlStat[path] = 1
-
+        # off-size X on-site requests
         self.totalRequests += 1
         if onSite:
             self.onSiteRequests += 1
@@ -47,6 +52,7 @@ class ApacheLogStat:
             path = request.split()[1]
             company = path.split('/')[1]
         except:
+            sys.stderr.write("Unexpected format of '{}'\n".format(request))
             raise
 
         return company, path
@@ -58,6 +64,7 @@ class ApacheLogStat:
             regex = ".*{}".format(ONSITE)
             match = re.match(regex, parse.hostname)
         except:
+            sys.stderr.write("Unexpected format of '{}'\n".format(referrer))
             raise
 
         return True if match else False
@@ -68,7 +75,8 @@ class ApacheLogStat:
         match = re.match(r'(.*) - - \[(.*)\] \"(.*?)\" ([0-9]+) ([0-9]+) \"(.*?)\" (.*)', line)
 
         if match == None:
-            raise RuntimeError('Error while parsing log line') # FIXME
+            sys.stderr.write("Unexpected format of log line '{}'\n".format(line))
+            raise RuntimeError('Error while parsing log line.')
 
         groups = match.groups();
 
@@ -82,22 +90,26 @@ class ApacheLogStat:
 
 
     def _procesFile(self, file):
-        ''' Open file and process each line. '''
-        try:
-            for line in file:
-                self._processLine(line)
-        except:
-            raise
+        ''' Process line by line from file. '''
+        for line in file:
+            self._processLine(line)
 
 
     def addFile(self, path):
         ''' Add single file and process its content. '''
-        with open(path) as file:
-            self._procesFile(file)
+        try:
+            with open(path) as file:
+                self._procesFile(file)
+        except IOError:
+            sys.stderr.write("Unable to process file '{}'.".format(path))
+            raise
+        except:
+            raise
 
 
     def printStat(self):
         ''' Print statistics. '''
+        # headline
         offSite = self.totalRequests - self.onSiteRequests
         print "Off-site requests: {} of {} ({:.2f}%)".format(
             offSite,
@@ -105,6 +117,7 @@ class ApacheLogStat:
             (float(offSite) / float(self.totalRequests)) * 100
         )
 
+        # top 10 urls
         print
         print "Top 10 URLs:"
         sortedUrl = sorted(self.urlStat, key=self.urlStat.get, reverse=True)
@@ -114,11 +127,12 @@ class ApacheLogStat:
                 url
             )
 
+        # customers summary
         print
         print "Customer usage summary:"
         for key in self.customerStat.keys():
-            print "\t{} {} GB - {}".format(
-                float(self.customerStat[key]), float(GIGA),
+            print "\t{:.2f} GB - {}".format(
+                float(self.customerStat[key]) / float(GIGA),
                 key
             )
 
@@ -139,8 +153,13 @@ def main(argv):
         listDir = os.listdir(argv[0]) # FIXME - use glob?
         for filename in listDir:
             logStat.addFile(os.path.join(argv[0], filename))
+    except OSError, e:
+        sys.stderr.write(str(e) + "\n")
+        usage()
+        return 1
     except:
-        raise # FIXME
+        sys.stderr.write("Statistics couldn't be processed.\n")
+        return 1
 
     logStat.printStat()
 
